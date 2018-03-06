@@ -232,8 +232,12 @@ def CalcSMRs(data, MDCTdata, MDCTscale, sampleRate, sfBands):
     signal_SPL = SPL((2.0/findWindowPower('kbd', np.size(data)))*(np.abs(MDCTdata)**2))
     
     for k in range(sfBands.nBands):
-        SMR[k] = np.max(signal_SPL[sfBands.lowerLine[k]:sfBands.upperLine[k]+1] -
-        masked_thres[sfBands.lowerLine[k]:sfBands.upperLine[k]+1])
+        #for shorter blocks, there maybe no lines in some bands
+        if(np.size(np.arange(sfBands.lowerLine[k],sfBands.upperLine[k]+1)) < 1):
+            SMR[k] = -30
+        else:
+            SMR[k] = np.max(signal_SPL[sfBands.lowerLine[k]:sfBands.upperLine[k]+1] -
+            masked_thres[sfBands.lowerLine[k]:sfBands.upperLine[k]+1])
         
         
     return SMR        

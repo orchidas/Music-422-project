@@ -19,7 +19,8 @@ def calculatePerceptualEntropy(sfBands, energy, SMR):
     pe = 0.0
     thres = 10**-9
     
-    for k in range(sfBands.nBands):
+    #take into accounts the higher bands only
+    for k in range(15, sfBands.nBands):
         #get total signal energy in band
         energy_band = np.sum(energy[sfBands.lowerLine[k]:sfBands.upperLine[k]+1])
         #make sure there are no numerical errors due to division by 0
@@ -39,22 +40,34 @@ def detectTransient(sfBands, data, MDCTdata, MDCTscale, sampleRate):
     win - 0 or 1 (1 bit), type of window - sine/KBD
     """
     
-#    if (win == 0):
-#        window = 'sine'
-#    else:
-    window = 'kbd'
-    
     #play around with the threshold value
-    thres = 2500
-    signal_inten = (2.0/psy.findWindowPower(window, np.size(data)))*(np.abs(MDCTdata)**2)
+    #thres = 500
+    signal_inten = (2.0/psy.findWindowPower('kbd', np.size(data)))*(np.abs(MDCTdata)**2)
     SMR = psy.CalcSMRs(data, MDCTdata, MDCTscale, sampleRate, sfBands)
     #convert SMR to intensity for perceptual entropy calculation
     PE = calculatePerceptualEntropy(sfBands, signal_inten, psy.Intensity(SMR))
     
-    if(PE > thres):
-        return (True,PE)
-    else:
-        return (False, PE)
+    return PE
+    
+#    if(PE > thres):
+#        return (True,PE)
+#    else:
+#        return (False, PE)
+    
+    
+def transient_detection(data):
+    """Transient detection using weighted FFT"""
+    
+    N_half = len(data)/2
+    fftData = np.fft.fft(data)[ : N_half]
+    threshold_energy = 0.14
+    weights = np.ones(N_half)
+    weights[ : len(weights)/2] = 0.0
+
+    # print weights
+    E = np.sum(weights*abs(fftData))/ (N_half)
+ 
+    return E > threshold_energy
     
 #-----------------------------------------------------------------------------
     
@@ -104,7 +117,7 @@ class WindowState(object):
             #after short transition window, switch back to long window
             self.state = 0
 
-    return self.state
+        return self.state
 
 #-----------------------------------------------------------------------------
 

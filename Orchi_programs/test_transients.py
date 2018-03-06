@@ -29,48 +29,57 @@ codingParams.nScaleBits = 4
 priorBlock = np.zeros((codingParams.nChannels, codingParams.nSamplesPerBlock))
 overlapAndAdd = np.zeros((codingParams.nChannels, codingParams.nSamplesPerBlock))
 flag = False
-sfBands = psy.ScaleFactorBands(psy.AssignMDCTLinesFromFreqLimits(codingParams.nSamplesPerBlock,
+sfBands = psy.ScaleFactorBands(psy.AssignMDCTLinesFromFreqLimits(codingParams.nSamplesPerBlock/2,
                                                              codingParams.sampleRate))
                                                                  
 #store signal here                                                                 
 signal = np.array([], dtype = float)
-transients = []
-PE = np.array([], dtype = float)
+transients = [[] for i in range(codingParams.nChannels)]
+percEntropy = [[] for i in range(codingParams.nChannels)]
+thres_change = 200
+thres_mag = 1000
+count = 0
 
 while True:
     data = inFile.ReadDataBlock(codingParams)
     nBits = 8
     if not data : break
+    #also keep appending it to longer signal chain
+    signal = np.concatenate([signal, data[iCh]])
+    
     for iCh in range(codingParams.nChannels):
        
-        #concatenate current block of new data samples with priorBlock
-        newBlock = np.concatenate([priorBlock[iCh], data[iCh]])
-        #save current block to pass on to detectTransient function
-        dataBlock = np.copy(newBlock)
-        #also keep appending it to longer signal chain
-        signal = np.concatenate([signal, dataBlock])
-        #save current block of new data as priorBlock for next pass
-        priorBlock[iCh] = data[iCh]
-        
-        #window 2*nSamplesPerBlock set of samples
-        newBlock = win.KBDWindow(newBlock)
-        #MDCT
-        MDCTdata = m.MDCT(newBlock,codingParams.nSamplesPerBlock,codingParams.nSamplesPerBlock)
-        #find MDCT scale        
-        maxLine = np.max(np.abs(newBlock))
-        MDCTscale = qt.ScaleFactor(maxLine,codingParams.nScaleBits)
-        
-        #make some changes here to detect transients
-        [tr, pe] = bs.detectTransient(sfBands, dataBlock, MDCTdata, MDCTscale, codingParams.sampleRate, 1)
-        transients.append(tr)
-        PE = np.append(PE, pe)
-               
-      
+        newBlock = data[iCh]
+#        #save current block to pass on to detectTransient function
+#        dataBlock = newBlock       
+#        #window 2*nSamplesPerBlock set of samples
+#        newBlock = win.KBDWindow(newBlock)
+#        #MDCT
+#        MDCTdata = m.MDCT(newBlock,codingParams.nSamplesPerBlock/2,codingParams.nSamplesPerBlock/2)
+#        #find MDCT scale        
+#        maxLine = np.max(np.abs(newBlock))
+#        MDCTscale = qt.ScaleFactor(maxLine,codingParams.nScaleBits)
+#        
+#        #find perceptual entropy for each channel
+#        percEntropy[iCh].append(bs.detectTransient(sfBands, dataBlock, MDCTdata, MDCTscale, codingParams.sampleRate))
+#    
+#        #detect transients by detecting change in PE from block to block    
+#        if((count > 0 and percEntropy[iCh][count] - percEntropy[iCh][count-1] >= thres_change)
+#            or percEntropy[iCh][count] > thres_mag):
+#            transients[iCh].append(True)
+#        else:
+#            transients[iCh].append(False)
+            
+        #using Prateek's FFT transient detector
+        transients[iCh].append(bs.transient_detection(newBlock))
+    
+    count += 1
+                   
 
-#find indices of all blocks that have transients
-transient_blocks = np.where(transients)[0]
+#find indices of all blocks that have transients for the first channel only
+transient_blocks = np.where(transients[0])[0]
 #transient position in samples
-transient_pos = transient_blocks * codingParams.nSamplesPerBlock * 2.0
+transient_pos = transient_blocks * codingParams.nSamplesPerBlock
 Fs = codingParams.sampleRate
 #time vector
 t = np.arange(0, np.size(signal)/Fs, 1.0/Fs)
@@ -83,7 +92,7 @@ for xc in xcoords:
     plt.axvline(x=xc, color = 'r', linestyle = '--')
 plt.title('Castanets')
 plt.xlabel('Time in seconds')
-plt.xlim(xmin = 0, xmax = 26)
+plt.xlim(xmin = 0, xmax = 8)
 plt.ylabel('Amplitude')
 
 # close the files

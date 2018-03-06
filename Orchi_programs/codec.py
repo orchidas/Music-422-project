@@ -9,13 +9,14 @@ codec.py -- The actual encode/decode functions for the perceptual audio codec
 import numpy as np  # used for arrays
 
 # used by Encode and Decode
-from window import SineWindow as win # current window used for MDCT
+#from window import SineWindow as win # current window used for MDCT
+import window as win
 # from window import KBDWindow as win # current window used for MDCT
 from mdct import MDCT,IMDCT  # fast MDCT implementation (uses numpy FFT)
 from quantize import *  # using vectorized versions (to use normal versions, uncomment lines 18,67 (30,79) below defining vMantissa and vDequantize)
 # used only by Encode
-from psychoac import CalcSMRs  # calculates SMRs for each scale factor band
-from bitalloc import BitAlloc  #allocates bits to scale factor bands given SMRs
+from psychoac import CalcSMRs, AssignMDCTLinesFromFreqLimits  # calculates SMRs for each scale factor band
+from bitalloc_ import BitAlloc  #allocates bits to scale factor bands given SMRs
 
 
 def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
@@ -27,6 +28,9 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
     N = 2*halfN
     # vectorizing the Dequantize function call
     #vDequantize = np.vectorize(Dequantize)
+    
+    if(codingParams.win_state != 0):
+        print(halfN)
 
     # reconstitute the first halfN MDCT lines of this channel from the stored data
     mdctLine = np.zeros(halfN,dtype=np.float64)
@@ -40,7 +44,29 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
 
 
     # IMDCT and window the data for this channel
-    data = win( IMDCT(mdctLine, halfN, halfN) )  # takes in halfN MDCT coeffs
+    #data = win( IMDCT(mdctLine, halfN, halfN) )  # takes in halfN MDCT coeffs
+    half_long = 512
+    half_short = 64
+    
+    #correct inverse MDCT based on window state
+    if codingParams.win_state == 0:
+        mdctLine = IMDCT(mdctLine, half_long, half_long)
+        data = win.compose_kbd_window(mdctLine, half_long, half_long, 4., 4.)
+    
+    elif codingParams.win_state == 1:
+        mdctLine = IMDCT(mdctLine, half_long, half_short)
+        data = win.compose_kbd_window(mdctLine, half_long, half_short, 4., 6.)
+       
+    elif codingParams.win_state == 2:
+        mdctLine = IMDCT(mdctLine, half_short, half_short)
+        data = win.compose_kbd_window(mdctLine, half_short, half_short, 6., 6.)
+        
+    elif codingParams.win_state == 3:
+        mdctLine = IMDCT(mdctLine, half_short, half_long)
+        data = win.compose_kbd_window(mdctLine, half_short, half_long, 6., 4.)
+    
+    else:
+        raise ValueError('Unknown window state:' + str(codingParams.win_state))
 
     # end loop over channels, return reconstituted time samples (pre-overlap-and-add)
     return data
@@ -52,6 +78,7 @@ def Encode(data,codingParams):
     bitAlloc = []
     mantissa = []
     overallScaleFactor = []
+    #window_state = []
 
     # loop over channels and separately encode each one
     for iCh in range(codingParams.nChannels):
@@ -60,6 +87,7 @@ def Encode(data,codingParams):
         bitAlloc.append(b)
         mantissa.append(m)
         overallScaleFactor.append(o)
+        
     # return results bundled over channels
     return (scaleFactor,bitAlloc,mantissa,overallScaleFactor)
 
@@ -76,17 +104,44 @@ def EncodeSingleChannel(data,codingParams):
     sfBands = codingParams.sfBands
     # vectorizing the Mantissa function call
     #vMantissa = np.vectorize(Mantissa)
+    
+    # window data for side chain FFT and also window and compute MDCT based on right windpw state
+    timeSamples = data
+    half_long = 512
+    half_short = 64
+    
+    if codingParams.win_state == 0:
+        halfN = half_long
+        mdctTimeSamples = win.compose_kbd_window(data, half_long, half_long, 4., 4.)
+        mdctLines = MDCT(mdctTimeSamples, half_long, half_long)[:halfN]
+ 
+    elif codingParams.win_state == 1:
+        halfN = (half_long + half_short)/2
+        mdctTimeSamples = win.compose_kbd_window(data, half_long, half_short, 4., 6.)
+        mdctLines = MDCT(mdctTimeSamples, half_long, half_short)[:halfN]
+ 
+    elif codingParams.win_state == 2:
+        halfN = half_short
+        mdctTimeSamples = win.compose_kbd_window(data, half_short, half_short, 6., 6.)
+        mdctLines = MDCT(mdctTimeSamples, half_short, half_short)[:halfN]
+ 
+    elif codingParams.win_state == 3:
+        halfN = (half_long + half_short)/2
+        mdctTimeSamples = win.compose_kbd_window(data, half_short, half_long, 6., 4.)
+        mdctLines = MDCT(mdctTimeSamples, half_short, half_long)[:halfN]
+ 
+    else:
+        raise ValueError('Unknown window state:' + str(codingParams.win_state))
+        
+    #make sure you have the right sfBands values
+    sfBands.nLines = AssignMDCTLinesFromFreqLimits(halfN, codingParams.sampleRate)
+    sfBands.upperLine = np.cumsum(sfBands.nLines)-1
+    sfBands.lowerLine = codingParams.sfBands.upperLine - sfBands.nLines + 1
 
     # compute target mantissa bit budget for this block of halfN MDCT mantissas
     bitBudget = codingParams.targetBitsPerSample * halfN  # this is overall target bit rate
     bitBudget -=  nScaleBits*(sfBands.nBands +1)  # less scale factor bits (including overall scale factor)
     bitBudget -= codingParams.nMantSizeBits*sfBands.nBands  # less mantissa bit allocation bits
-
-
-    # window data for side chain FFT and also window and compute MDCT
-    timeSamples = data
-    mdctTimeSamples = win(data)
-    mdctLines = MDCT(mdctTimeSamples, halfN, halfN)[:halfN]
 
     # compute overall scale factor for this block and boost mdctLines using it
     maxLine = np.max( np.abs(mdctLines) )
@@ -110,10 +165,20 @@ def EncodeSingleChannel(data,codingParams):
         lowLine = sfBands.lowerLine[iBand]
         highLine = sfBands.upperLine[iBand] + 1  # extra value is because slices don't include last value
         nLines= sfBands.nLines[iBand]
-        scaleLine = np.max(np.abs( mdctLines[lowLine:highLine] ) )
+        
+        #if there are no lines in the given critical band
+        if(highLine - lowLine <= 0):
+            mdctVals = 0
+#        elif(highLine - lowLine == 1):
+#            mdctVals = np.array([mdctLines[lowLine:highLine]])
+        else:
+            mdctVals = mdctLines[lowLine:highLine]
+        
+        scaleLine = np.max(np.abs( mdctVals ) )
         scaleFactor[iBand] = ScaleFactor(scaleLine, nScaleBits, bitAlloc[iBand])
+        
         if bitAlloc[iBand]:
-            mantissa[iMant:iMant+nLines] = vMantissa(mdctLines[lowLine:highLine],scaleFactor[iBand], nScaleBits, bitAlloc[iBand])
+            mantissa[iMant:iMant+nLines] = vMantissa(mdctVals,scaleFactor[iBand], nScaleBits, bitAlloc[iBand])
             iMant += nLines
     # end of loop over scale factor bands
 

@@ -74,37 +74,39 @@ def vQuantizeUniform(aNumVec, nBits):
     """
     Uniformly quantize vector aNumberVec of signed fractions with nBits
     """
-
-    aQuantizedNumVec = np.zeros_like(aNumVec, dtype = int) # REMOVE THIS LINE WHEN YOUR FUNCTION IS DONE
-
-    #Notes:
-    #Make sure to vectorize properly your function as specified in the homework instructions
-
-    ### YOUR CODE STARTS HERE ###
-
-    s = np.zeros(aNumVec.size, dtype = int)
-    code = np.zeros(aNumVec.size, dtype = int)
-
-    #find sign bits for vector of inputs
-    s[np.where(aNumVec < 0)] = 1
-
-    #find codes
-    overloadPos = np.where(np.abs(aNumVec) >= 1)
-    normalPos = np.where(np.abs(aNumVec) < 1)
-
-    if(np.size(overloadPos) > 0):
-        code[overloadPos] = 2**(nBits-1)-1
-
-    code[normalPos] = np.floor(((2**nBits - 1) * np.abs(aNumVec[normalPos]) + 1)/2)
-
-    #final quantized vector 
-    aQuantizedNumVec = code + s*(2**(nBits-1))
-
-
-
-    ### YOUR CODE ENDS HERE ###
-
-    return aQuantizedNumVec
+    if np.isscalar(aNumVec):
+        return QuantizeUniform(aNumVec, nBits)
+    else:
+        aQuantizedNumVec = np.zeros_like(aNumVec, dtype = int) # REMOVE THIS LINE WHEN YOUR FUNCTION IS DONE
+    
+        #Notes:
+        #Make sure to vectorize properly your function as specified in the homework instructions
+    
+        ### YOUR CODE STARTS HERE ###
+    
+        s = np.zeros(aNumVec.size, dtype = int)
+        code = np.zeros(aNumVec.size, dtype = int)
+    
+        #find sign bits for vector of inputs
+        s[np.where(aNumVec < 0)] = 1
+    
+        #find codes
+        overloadPos = np.where(np.abs(aNumVec) >= 1)
+        normalPos = np.where(np.abs(aNumVec) < 1)
+    
+        if(np.size(overloadPos) > 0):
+            code[overloadPos] = 2**(nBits-1)-1
+    
+        code[normalPos] = np.floor(((2**nBits - 1) * np.abs(aNumVec[normalPos]) + 1)/2)
+    
+        #final quantized vector 
+        aQuantizedNumVec = code + s*(2**(nBits-1))
+    
+    
+    
+        ### YOUR CODE ENDS HERE ###
+    
+        return aQuantizedNumVec
 
 
 
@@ -351,39 +353,26 @@ def vMantissa(aNumVec, scale, nScaleBits=3, nMantBits=5):
     """
     Return a vector of block floating-point mantissas for a vector of  signed fractions aNum given nScaleBits scale bits and nMantBits mantissa bits
     """
-
-    mantissaVec = np.zeros_like(aNumVec, dtype = int) # REMOVE THIS LINE WHEN YOUR FUNCTION IS DONE
-
-    ### YOUR CODE STARTS HERE ###
-#    R = 2**(nScaleBits)-1+nMantBits
-#    aQuantizedVec = vQuantizeUniform(aNumVec, R)
-#    #find sign bit separately
-#    s = aQuantizedVec >> (R-1)
-#
-#    #step 2 - cannot assume one after leading zeros
-#
-#    #scale + 2 gets replaced with scale + 1 because there's no 1 after leading zeros
-#    mantissaVec = aQuantizedVec & ((1 << (R-(scale+1)))-1)
-#    
-#    ind = np.where(mantissaVec > 2**(nMantBits-1)-1)
-#    #one more right shift is needed because we are not ignoring the 1 after leading zeros
-#    mantissaVec[ind] = mantissaVec[ind] >> (R - (scale+1) -nMantBits + 1)
-#    
-#    #add sign bit to first bit of mantissa
-#    mantissaVec = mantissaVec + s*(2**(nMantBits-1)) 
     
-    #this is the way it's done in the non-vectorized function    
-    R = (1 << nScaleBits) - 1 + nMantBits
-    aQuantizedVec = vQuantizeUniform(abs(aNumVec),R)
-    aQuantizedVec = aQuantizedVec << (scale+1)
-    mantissaVec = aQuantizedVec >> (R+1-nMantBits)
-    inds = np.where(aNumVec < 0)
-    mantissaVec[inds] += (1<<(nMantBits-1)) 
+    if(np.isscalar(aNumVec)):
+        return Mantissa(aNumVec, scale)
+    else:    
+        mantissaVec = np.zeros_like(aNumVec, dtype = int) # REMOVE THIS LINE WHEN YOUR FUNCTION IS DONE
     
-
-    ### YOUR CODE ENDS HERE ###
-
-    return mantissaVec
+        ### YOUR CODE STARTS HERE ###
+        
+        #this is the way it's done in the non-vectorized function    
+        R = (1 << nScaleBits) - 1 + nMantBits
+        aQuantizedVec = vQuantizeUniform(np.abs(aNumVec),R)
+        aQuantizedVec = aQuantizedVec << (scale+1)
+        mantissaVec = aQuantizedVec >> (R+1-nMantBits)
+        inds = np.where(aNumVec < 0)
+        mantissaVec[inds] += (1<<(nMantBits-1)) 
+        
+    
+        ### YOUR CODE ENDS HERE ###
+    
+        return mantissaVec
 
 
 ### Problem 1.c.ii ###
