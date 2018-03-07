@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 
 # create the audio file objects of the appropriate audioFile type
-inFile= PCMFile("Castanets.wav")
+inFile= PCMFile("harp40_1.wav")
 
 # open input file and get its coding parameters
 codingParams= inFile.OpenForReading()
@@ -36,7 +36,7 @@ sfBands = psy.ScaleFactorBands(psy.AssignMDCTLinesFromFreqLimits(codingParams.nS
 signal = np.array([], dtype = float)
 transients = [[] for i in range(codingParams.nChannels)]
 percEntropy = [[] for i in range(codingParams.nChannels)]
-thres_change = 200
+thres_change = 100
 thres_mag = 1000
 count = 0
 
@@ -98,7 +98,6 @@ plt.ylabel('Amplitude')
 # close the files
 inFile.Close(codingParams)
 
-#print(PE[transient_blocks])
 
 
 

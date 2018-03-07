@@ -29,9 +29,6 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
     # vectorizing the Dequantize function call
     #vDequantize = np.vectorize(Dequantize)
     
-    if(codingParams.win_state != 0):
-        print(halfN)
-
     # reconstitute the first halfN MDCT lines of this channel from the stored data
     mdctLine = np.zeros(halfN,dtype=np.float64)
     iMant = 0
@@ -55,15 +52,15 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
     
     elif codingParams.win_state == 1:
         mdctLine = IMDCT(mdctLine, half_long, half_short)
-        data = win.compose_kbd_window(mdctLine, half_long, half_short, 4., 6.)
+        data = win.compose_kbd_window(mdctLine, half_long, half_short, 4., 4.)
        
     elif codingParams.win_state == 2:
         mdctLine = IMDCT(mdctLine, half_short, half_short)
-        data = win.compose_kbd_window(mdctLine, half_short, half_short, 6., 6.)
+        data = win.compose_kbd_window(mdctLine, half_short, half_short, 4., 4.)
         
     elif codingParams.win_state == 3:
         mdctLine = IMDCT(mdctLine, half_short, half_long)
-        data = win.compose_kbd_window(mdctLine, half_short, half_long, 6., 4.)
+        data = win.compose_kbd_window(mdctLine, half_short, half_long, 4., 4.)
     
     else:
         raise ValueError('Unknown window state:' + str(codingParams.win_state))
@@ -117,17 +114,17 @@ def EncodeSingleChannel(data,codingParams):
  
     elif codingParams.win_state == 1:
         halfN = (half_long + half_short)/2
-        mdctTimeSamples = win.compose_kbd_window(data, half_long, half_short, 4., 6.)
+        mdctTimeSamples = win.compose_kbd_window(data, half_long, half_short, 4., 4.)
         mdctLines = MDCT(mdctTimeSamples, half_long, half_short)[:halfN]
  
     elif codingParams.win_state == 2:
         halfN = half_short
-        mdctTimeSamples = win.compose_kbd_window(data, half_short, half_short, 6., 6.)
+        mdctTimeSamples = win.compose_kbd_window(data, half_short, half_short, 4., 4.)
         mdctLines = MDCT(mdctTimeSamples, half_short, half_short)[:halfN]
  
     elif codingParams.win_state == 3:
         halfN = (half_long + half_short)/2
-        mdctTimeSamples = win.compose_kbd_window(data, half_short, half_long, 6., 4.)
+        mdctTimeSamples = win.compose_kbd_window(data, half_short, half_long, 4., 4.)
         mdctLines = MDCT(mdctTimeSamples, half_short, half_long)[:halfN]
  
     else:
@@ -169,8 +166,6 @@ def EncodeSingleChannel(data,codingParams):
         #if there are no lines in the given critical band
         if(highLine - lowLine <= 0):
             mdctVals = 0
-#        elif(highLine - lowLine == 1):
-#            mdctVals = np.array([mdctLines[lowLine:highLine]])
         else:
             mdctVals = mdctLines[lowLine:highLine]
         
