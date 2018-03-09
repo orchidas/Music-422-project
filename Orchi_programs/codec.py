@@ -30,7 +30,7 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
     #vDequantize = np.vectorize(Dequantize)
     
     # reconstitute the first halfN MDCT lines of this channel from the stored data
-    mdctLine = np.zeros(halfN,dtype=np.float64)
+    mdctLine = np.zeros(int(halfN),dtype=np.float64)
     iMant = 0
     for iBand in range(codingParams.sfBands.nBands):
         nLines =codingParams.sfBands.nLines[iBand]
@@ -51,7 +51,7 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
         data = win.compose_kbd_window(mdctLine, half_long, half_long, 4., 4.)
     
     elif codingParams.win_state == 1:
-        mdctLine = IMDCT(mdctLine, half_long, half_short)
+        mdctLine = IMDCT(mdctLine, half_long, half_long)
         data = win.compose_kbd_window(mdctLine, half_long, half_short, 4., 4.)
        
     elif codingParams.win_state == 2:
@@ -95,9 +95,10 @@ def EncodeSingleChannel(data,codingParams):
     # prepare various constants
     halfN = codingParams.nMDCTLines
     N = 2*halfN
+    
     nScaleBits = codingParams.nScaleBits
     maxMantBits = (1<<codingParams.nMantSizeBits)  # 1 isn't an allowed bit allocation so n size bits counts up to 2^n
-    if maxMantBits>16: maxMantBits = 16  # to make sure we don't ever overflow mantissa holders
+    if maxMantBits > 16: maxMantBits = 16  # to make sure we don't ever overflow mantissa holders
     sfBands = codingParams.sfBands
     # vectorizing the Mantissa function call
     #vMantissa = np.vectorize(Mantissa)
@@ -128,6 +129,7 @@ def EncodeSingleChannel(data,codingParams):
         mdctLines = MDCT(mdctTimeSamples, half_short, half_long)[:halfN]
  
     else:
+
         raise ValueError('Unknown window state:' + str(codingParams.win_state))
         
     #make sure you have the right sfBands values

@@ -21,7 +21,7 @@ class PackedBits:
         """Sizes an existing PackedBits object to hold nBytes of data (all initialized to zero)"""
         self.nBytes=nBytes # number of bytes it holds
         self.iByte=self.iBit=0 # reset pointers when resetting data
-        self.data= np.zeros(nBytes,dtype=np.uint8)
+        self.data= np.zeros(int(nBytes),dtype=np.uint8)
 
     def GetPackedData(self):
         """Gets the packed data held by this PackedBits object and returns it as a data string"""

@@ -223,7 +223,7 @@ class PACFile(AudioFile):
             overallScaleFactor = pb.ReadBits(codingParams.nScaleBits)  # overall scale factor
             scaleFactor=[]
             bitAlloc=[]
-            mantissa=np.zeros(codingParams.nMDCTLines,np.int32)  # start w/ all mantissas zero
+            mantissa=np.zeros(int(codingParams.nMDCTLines),np.int32)  # start w/ all mantissas zero
             for iBand in range(codingParams.sfBands.nBands): # loop over each scale factor band to pack its data
                 ba = pb.ReadBits(codingParams.nMantSizeBits)
                 if ba: ba+=1  # no bit allocation of 1 so ba of 2 and up stored as one less
@@ -240,6 +240,9 @@ class PACFile(AudioFile):
 
             # (DECODE HERE) decode the unpacked data for this channel, overlap-and-add first half, and append it to the data array (saving other half for next overlap-and-add)
             decodedData = self.Decode(scaleFactor,bitAlloc,mantissa, overallScaleFactor,codingParams)
+
+            
+
             
             #for debugging
 #            if(codingParams.win_state != 0):
@@ -248,8 +251,11 @@ class PACFile(AudioFile):
             #take care of overlap add with different block sizes
             data[iCh] = np.concatenate( (data[iCh],np.add(codingParams.overlapAndAdd[iCh],decodedData[:olaSamplesCur]) ) )  # data[iCh] is overlap-and-added data
             codingParams.overlapAndAdd[iCh] = decodedData[olaSamplesStore:]  # save other half for next pass
+
+
             
         # end loop over channels, return signed-fraction samples for this block
+
         return data
 
 
@@ -309,9 +315,10 @@ class PACFile(AudioFile):
             nLines = 512
         elif codingParams.win_state == 1:
             numSubBlocks = 1
-            nDivide = 8
+            nDivide = 1
             nLines = (512 + 64)/2
-        elif codingParams.win_state == 2:
+        elif codingParams.win_state == 2
+        :
             numSubBlocks = nDivide = 8
             nLines = 64
         elif codingParams.win_state == 3:
@@ -342,6 +349,8 @@ class PACFile(AudioFile):
                 codingParams.priorBlock[iCh] = tempData[iCh][np.arange(b) + iBlk*b]
                 
             # (ENCODE HERE) Encode the full block of multi=channel data
+
+            # print " LeData Being Encoded : " + str(fullBlockData)
             (scaleFactor,bitAlloc,mantissa, overallScaleFactor) = self.Encode(fullBlockData,codingParams)  # returns a tuple with all the block-specific info not in the file header
 
 
@@ -447,7 +456,7 @@ if __name__=="__main__":
 
     input_filename = "Castanets.wav"
     coded_filename = "coded.pac"
-    output_filename = "Castanets_bs_highDR.wav"
+    output_filename = "Castanets_output.wav"
 
     if len(sys.argv) > 1:
         input_filename = sys.argv[1]
@@ -480,7 +489,7 @@ if __name__=="__main__":
             # set additional parameters that are needed for PAC file
             # (beyond those set by the PCM file on open)
             codingParams.nMDCTLines = 512
-            codingParams.nScaleBits = 3
+            codingParams.nScaleBits = 4
             codingParams.nMantSizeBits = 4
             #codingParams.targetBitsPerSample = 5.34/2
             #set target bits per sample for given datarate 
@@ -515,6 +524,7 @@ if __name__=="__main__":
         #start reading/writing data
         while True:
             
+            count = 0
             nextBlock = inFile.ReadDataBlock(codingParams)  
             #reached end of file            
             if not curBlock: break  # we hit the end of the input file
@@ -525,10 +535,14 @@ if __name__=="__main__":
                 
                 firstBlock = False
                 #do transient detection while encoding only
-                curBlock = nextBlock
+
+                curBlock[0] = np.copy(nextBlock[0])
+                curBlock[1] = np.copy(nextBlock[1])
+
                 continue
             
             #do block switching
+
             if nextBlock and Direction == "Encode":
                 
                 #find transient for each channel of data
@@ -570,6 +584,7 @@ if __name__=="__main__":
             #write the current block with the correct window_state
             outFile.WriteDataBlock(curBlock,codingParams)
             curBlock = nextBlock
+            
             
             if codingParams.win_state == 0:
                 sys.stdout.write("_ ")  # just to signal how far we've gotten to user

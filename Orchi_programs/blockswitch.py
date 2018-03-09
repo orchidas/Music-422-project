@@ -59,7 +59,7 @@ def transient_detection(data):
     """Transient detection using weighted FFT"""
     
     N_half = len(data)/2
-    fftData = np.fft.fft(data)[ : N_half]
+    fftData = np.fft.fft(data)[ : int(N_half)]
     #threshold_energy = 0.14
     threshold_energy = 50
     #weights = np.ones(N_half)
