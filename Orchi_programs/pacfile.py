@@ -155,6 +155,9 @@ class PACFile(AudioFile):
         myParams.sfBandsTrans = ScaleFactorBands(nLinesTrans)
         nLinesLong = AssignMDCTLinesFromFreqLimits(myParams.nMDCTLinesLong, myParams.sampleRate)
         myParams.sfBandsLong = ScaleFactorBands(nLinesLong)
+        
+        myParams.a = 512
+        myParams.b = 512
                 
         
         # start w/o all zeroes as data from prior block to overlap-and-add for output
@@ -247,7 +250,6 @@ class PACFile(AudioFile):
             data[iCh] = np.concatenate( (data[iCh],np.add(codingParams.overlapAndAdd[iCh],decodedData[:codingParams.a]) ) )  # data[iCh] is overlap-and-added data
             codingParams.overlapAndAdd[iCh] = decodedData[codingParams.a:]  # save other half for next pass
 
-        print('Decoded data block length :', np.shape(decodedData))
         # end loop over channels, return signed-fraction samples for this block
         return data
 
@@ -423,9 +425,9 @@ if __name__=="__main__":
     import time
     from pcmfile import * # to get access to WAV file handling
 
-    input_filename = "Castanets_short.wav"
+    input_filename = "audio/Castanets.wav"
     coded_filename = "coded.pac"
-    output_filename = "Castanets_short_bs_highDR.wav"
+    output_filename = "audio/Castanets_bs_highDR.wav"
 
     if len(sys.argv) > 1:
         input_filename = sys.argv[1]
@@ -473,7 +475,7 @@ if __name__=="__main__":
             codingParams.nMantSizeBits = 4
             #codingParams.targetBitsPerSample = 5.34/2
             #set target bits per sample for given datarate 
-            dataRate = 192000
+            dataRate = 705600
             nBitsPerBlock = dataRate/codingParams.sampleRate * codingParams.nMDCTLines
             codingParams.targetBitsPerSample = (nBitsPerBlock - 2*(4*25) - 4)/(codingParams.nMDCTLines)
             # tell the PCM file how large the block size is
@@ -556,13 +558,14 @@ if __name__=="__main__":
                         codingParams.win_state = 2
                         W.setState(2)
                         
-                        for k in range(nSubBlocks):
+                        for k in range(1,nSubBlocks):
                             for iCh in range(codingParams.nChannels):
                                 transBlock[iCh] = data[iCh][np.arange(codingParams.nMDCTLinesShort) + k*codingParams.nMDCTLinesShort]
                             
                             outFile.WriteDataBlock(transBlock, codingParams) 
                             
                 elif(codingParams.win_state == 2):
+                    
                     print('Two consecutive transients')
                     for k in range(nSubBlocks):
                         for iCh in range(codingParams.nChannels):

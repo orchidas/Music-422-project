@@ -41,18 +41,12 @@ def detectTransient(sfBands, data, MDCTdata, MDCTscale, sampleRate):
     """
     
     #play around with the threshold value
-    #thres = 500
     signal_inten = (2.0/psy.findWindowPower('kbd', np.size(data)))*(np.abs(MDCTdata)**2)
     SMR = psy.CalcSMRs(data, MDCTdata, MDCTscale, sampleRate, sfBands)
     #convert SMR to intensity for perceptual entropy calculation
     PE = calculatePerceptualEntropy(sfBands, signal_inten, psy.Intensity(SMR))
     
     return PE
-    
-#    if(PE > thres):
-#        return (True,PE)
-#    else:
-#        return (False, PE)
     
     
 def transient_detection(data):
@@ -61,7 +55,7 @@ def transient_detection(data):
     N_half = len(data)/2
     fftData = np.fft.fft(data)[ : int(N_half)]
     #threshold_energy = 0.14
-    threshold_energy = 50
+    threshold_energy = 80
     #weights = np.ones(N_half)
     #weights[ : len(weights)/2] = 0.0
     #try a different weight (HFC function)

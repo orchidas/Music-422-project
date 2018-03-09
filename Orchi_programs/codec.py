@@ -71,7 +71,8 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
 
     # IMDCT and window the data for this channel
     mdctData =  IMDCT(mdctLine, codingParams.a, codingParams.b)
-    data = win.compose_kbd_window(mdctData, codingParams.a, codingParams.b, f_alpha, l_alpha)# takes in halfN MDCT coeffs
+    #data = win.compose_kbd_window(mdctData, codingParams.a, codingParams.b, 4., 4.)# takes in halfN MDCT coeffs
+    data = win.compose_sine_window(mdctData, codingParams.a, codingParams.b)
 
     # end loop over channels, return reconstituted time samples (pre-overlap-and-add)
     return data
@@ -104,27 +105,27 @@ def EncodeSingleChannel(data,codingParams):
     if codingParams.win_state == 0 :
         codingParams.a = codingParams.nMDCTLinesLong
         codingParams.b = codingParams.nMDCTLinesLong
-        f_alpha = l_alpha = 4.
+        #f_alpha = l_alpha = 4.
     
     #next block is a short block
     elif codingParams.win_state == 1:
         codingParams.a = codingParams.nMDCTLinesLong
         codingParams.b = codingParams.nMDCTLinesShort
-        f_alpha = 4
-        l_alpha = 6.
+#        f_alpha = 4
+#        l_alpha = 6.
     
     #next block is a stop transition block
     elif codingParams.win_state == 2:
         codingParams.a = codingParams.nMDCTLinesShort
         codingParams.b = codingParams.nMDCTLinesShort
-        f_alpha = l_alpha = 6.
+#        f_alpha = l_alpha = 6.
  
     #next block is a short block after a 
     elif codingParams.win_state == 3:
         codingParams.a = codingParams.nMDCTLinesShort
         codingParams.b = codingParams.nMDCTLinesLong
-        f_alpha = 6.
-        l_alpha = 4.
+#        f_alpha = 6.
+#        l_alpha = 4.
  
     else:
         raise ValueError('Unknown window state:' + str(codingParams.win_state))
@@ -145,8 +146,9 @@ def EncodeSingleChannel(data,codingParams):
     bitBudget -= codingParams.nMantSizeBits*sfBands.nBands  # less mantissa bit allocation bits
 
         
-    mdctTimeSamples = win.compose_kbd_window(data, codingParams.a, codingParams.b, f_alpha, l_alpha)
-    mdctLines = MDCT(mdctTimeSamples, halfN, halfN)[:halfN]
+    #mdctTimeSamples = win.compose_kbd_window(data, codingParams.a, codingParams.b, 4., 4.)
+    mdctTimeSamples = win.compose_sine_window(data, codingParams.a, codingParams.b)
+    mdctLines = MDCT(mdctTimeSamples, codingParams.a, codingParams.b)
 
     # compute overall scale factor for this block and boost mdctLines using it
     maxLine = np.max( np.abs(mdctLines) )
@@ -174,16 +176,16 @@ def EncodeSingleChannel(data,codingParams):
         
         #if there are no lines in the given critical band
         if(highLine - lowLine <= 0):
-            mdctVals = [0]
+            scaleFactor[iBand] = 0
+            mantissa[iMant:iMant+nLines] = 0
         else:
             mdctVals = mdctLines[lowLine:highLine]
+            scaleLine = np.max(np.abs( mdctVals ) )
+            scaleFactor[iBand] = ScaleFactor(scaleLine, nScaleBits, bitAlloc[iBand])
             
-        scaleLine = np.max(np.abs( mdctVals ) )
-        scaleFactor[iBand] = ScaleFactor(scaleLine, nScaleBits, bitAlloc[iBand])
-        
-        if bitAlloc[iBand]:
-            mantissa[iMant:iMant+nLines] = vMantissa(mdctVals,scaleFactor[iBand], nScaleBits, bitAlloc[iBand])
-            iMant += nLines
+            if bitAlloc[iBand]:
+                mantissa[iMant:iMant+nLines] = vMantissa(mdctVals,scaleFactor[iBand], nScaleBits, bitAlloc[iBand])
+                iMant += nLines
     # end of loop over scale factor bands
 
     # return results
