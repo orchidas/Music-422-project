@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 
 # create the audio file objects of the appropriate audioFile type
-inFile= PCMFile("harp40_1.wav")
+inFile= PCMFile("Castanets.wav")
 
 # open input file and get its coding parameters
 codingParams= inFile.OpenForReading()
@@ -36,6 +36,7 @@ sfBands = psy.ScaleFactorBands(psy.AssignMDCTLinesFromFreqLimits(codingParams.nS
 signal = np.array([], dtype = float)
 transients = [[] for i in range(codingParams.nChannels)]
 percEntropy = [[] for i in range(codingParams.nChannels)]
+E = [[] for i in range(codingParams.nChannels)]
 thres_change = 100
 thres_mag = 1000
 count = 0
@@ -71,13 +72,17 @@ while True:
 #            transients[iCh].append(False)
             
         #using Prateek's FFT transient detector
-        transients[iCh].append(bs.transient_detection(newBlock))
+        (tr,en) = bs.transient_detection(newBlock)
+        #transients[iCh].append(bs.transient_detection(newBlock))
+        transients[iCh].append(tr)
+        E[iCh].append(en)
     
-    count += 1
+#    count += 1
                    
 
 #find indices of all blocks that have transients for the first channel only
 transient_blocks = np.where(transients[0])[0]
+np.savetxt('transients.out', transient_blocks, delimiter=',') 
 #transient position in samples
 transient_pos = transient_blocks * codingParams.nSamplesPerBlock
 Fs = codingParams.sampleRate

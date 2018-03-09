@@ -107,13 +107,10 @@ import codec    # module where the actual PAC coding functions reside(this modul
 from psychoac import ScaleFactorBands, AssignMDCTLinesFromFreqLimits  # defines the grouping of MDCT lines into scale factor bands
 import sys
 from blockswitch import *
-import window as win
-import mdct as m
-import quantize as qt
+import matplotlib.pyplot as plt
 
 import numpy as np  # to allow conversion of data blocks to numpy's array object
 MAX16BITS = 32767
-    
 
 class PACFile(AudioFile):
     """
@@ -147,6 +144,22 @@ class PACFile(AudioFile):
         myParams.nMantSizeBits = nMantSizeBits
         # add in scale factor band information
         myParams.sfBands =sfBands
+        
+        myParams.nMDCTLinesLong = 512
+        myParams.nMDCTLinesShort = 64
+        myParams.nMDCTLinesTrans = (512 + 64)/2
+       
+        nLinesShort = AssignMDCTLinesFromFreqLimits(myParams.nMDCTLinesShort, myParams.sampleRate)
+        myParams.sfBandsShort = ScaleFactorBands(nLinesShort)
+        nLinesTrans = AssignMDCTLinesFromFreqLimits(myParams.nMDCTLinesTrans, myParams.sampleRate)
+        myParams.sfBandsTrans = ScaleFactorBands(nLinesTrans)
+        nLinesLong = AssignMDCTLinesFromFreqLimits(myParams.nMDCTLinesLong, myParams.sampleRate)
+        myParams.sfBandsLong = ScaleFactorBands(nLinesLong)
+        
+        myParams.a = 512
+        myParams.b = 512
+                
+        
         # start w/o all zeroes as data from prior block to overlap-and-add for output
         overlapAndAdd = []
         for iCh in range(nChannels): overlapAndAdd.append( np.zeros(nMDCTLines, dtype=np.float64) )
@@ -159,13 +172,9 @@ class PACFile(AudioFile):
         Reads a block of coded data from a PACFile object that has already
         executed OpenForReading() and returns those samples as reconstituted
         signed-fraction data
-        
-        How can I print from within this function? - it's not returning the right size of data
         """
-        
         # loop over channels (whose coded data are stored separately) and read in each data block
         data=[]
-
         for iCh in range(codingParams.nChannels):
             data.append(np.array([],dtype=np.float64))  # add location for this channel's data
             # read in string containing the number of bytes of data for this channel (but check if at end of file!)
@@ -184,41 +193,37 @@ class PACFile(AudioFile):
             pb = PackedBits()
             pb.SetPackedData( self.fp.read(nBytes) ) # PackedBits function SetPackedData() converts strings to internally-held array of bytes
             if pb.nBytes < nBytes:  raise "Only read a partial block of coded PACFile data"
-                  
-            # CUSTOM DATA:
-            # < now can unpack any custom data passed in the nBytes of data >
-            #unpack 2 bits of data for determining window state
-            codingParams.win_state = pb.ReadBits(2)
             
-            #determine block size and overlap add facttors given window state
+            #read window state
+            codingParams.win_state = pb.ReadBits(2)
+            #print(codingParams.win_state)
+            
+            #determine block size and overlap add factors given window state
             if codingParams.win_state == 0:
-                codingParams.nMDCTLines = 512
-                olaSamplesCur = olaSamplesStore = 512
+                codingParams.nMDCTLines = codingParams.nMDCTLinesLong
+                codingParams.a = 512
+                codingParams.sfBands = codingParams.sfBandsLong
+                
             
             elif codingParams.win_state == 1:
-                codingParams.nMDCTLines = (512 + 64) / 2
-                olaSamplesCur = 512
-                olaSamplesStore = 512
+                codingParams.nMDCTLines = codingParams.nMDCTLinesTrans
+                codingParams.a = 512
+                codingParams.sfBands = codingParams.sfBandsTrans
+               
             
             elif codingParams.win_state == 2:
-                codingParams.nMDCTLines = 64
-                olaSamplesCur = 64
-                olaSamplesStore = 64
+                codingParams.nMDCTLines = codingParams.nMDCTLinesShort
+                codingParams.a = 64
+                codingParams.sfBands = codingParams.sfBandsShort
             
             elif codingParams.win_state == 3:
-                codingParams.nMDCTLines = (512 + 64) / 2
-                olaSamplesCur = 64
-                olaSamplesStore = 64
+                codingParams.nMDCTLines = codingParams.nMDCTLinesTrans
+                codingParams.sfBands = codingParams.sfBandsTrans
+                codingParams.a = 64
             
             else:
                 raise ValueError('Invalid window state: ' + str(codingParams.win_state))
-                
-            #make sure you have the right sfBands values
-            codingParams.sfBands.nLines = AssignMDCTLinesFromFreqLimits(codingParams.nMDCTLines, codingParams.sampleRate)
-            codingParams.sfBands.upperLine = np.cumsum(codingParams.sfBands.nLines)-1
-            codingParams.sfBands.lowerLine = codingParams.sfBands.upperLine - codingParams.sfBands.nLines + 1
-            
-            
+
             # extract the data from the PackedBits object
             overallScaleFactor = pb.ReadBits(codingParams.nScaleBits)  # overall scale factor
             scaleFactor=[]
@@ -237,9 +242,12 @@ class PACFile(AudioFile):
                     mantissa[codingParams.sfBands.lowerLine[iBand]:(codingParams.sfBands.upperLine[iBand]+1)] = m
             # done unpacking data (end loop over scale factor bands)
 
+            # CUSTOM DATA:
+            # < now can unpack any custom data passed in the nBytes of data >
 
             # (DECODE HERE) decode the unpacked data for this channel, overlap-and-add first half, and append it to the data array (saving other half for next overlap-and-add)
             decodedData = self.Decode(scaleFactor,bitAlloc,mantissa, overallScaleFactor,codingParams)
+<<<<<<< HEAD
 
             
 
@@ -254,6 +262,11 @@ class PACFile(AudioFile):
 
 
             
+=======
+            data[iCh] = np.concatenate( (data[iCh],np.add(codingParams.overlapAndAdd[iCh],decodedData[:codingParams.a]) ) )  # data[iCh] is overlap-and-added data
+            codingParams.overlapAndAdd[iCh] = decodedData[codingParams.a:]  # save other half for next pass
+
+>>>>>>> 193caf70f4f39c477fb5ca8881613aa86ef7acc9
         # end loop over channels, return signed-fraction samples for this block
 
         return data
@@ -280,10 +293,10 @@ class PACFile(AudioFile):
             codingParams.sampleRate, codingParams.nChannels,
             codingParams.numSamples, codingParams.nMDCTLines,
             codingParams.nScaleBits, codingParams.nMantSizeBits  ))
-            
         # create a ScaleFactorBand object to be used by the encoding process and write its info to header
         sfBands=ScaleFactorBands( AssignMDCTLinesFromFreqLimits(codingParams.nMDCTLines,
-                                                                codingParams.sampleRate))
+                                                                codingParams.sampleRate)
+                                )
         codingParams.sfBands=sfBands
         self.fp.write(pack('<L',sfBands.nBands))
         self.fp.write(pack('<'+str(sfBands.nBands)+'H',*(sfBands.nLines.tolist()) ))
@@ -293,10 +306,22 @@ class PACFile(AudioFile):
             priorBlock.append(np.zeros(codingParams.nMDCTLines,dtype=np.float64) )
         codingParams.priorBlock = priorBlock
         
-        #create new members of codingParams here
+        #define parameters of codingParams that I need:
         codingParams.win_state = 0
+        codingParams.a = 512
+        codingParams.b = 512
+        codingParams.nMDCTLinesLong = 512
+        codingParams.nMDCTLinesShort = 64
+        codingParams.nMDCTLinesTrans = (512 + 64)/2
+        nLinesShort = AssignMDCTLinesFromFreqLimits(codingParams.nMDCTLinesShort, codingParams.sampleRate)
+        codingParams.sfBandsShort = ScaleFactorBands(nLinesShort)
+        nLinesTrans = AssignMDCTLinesFromFreqLimits(codingParams.nMDCTLinesTrans, codingParams.sampleRate)
+        codingParams.sfBandsTrans = ScaleFactorBands(nLinesTrans)
+        nLinesLong = AssignMDCTLinesFromFreqLimits(codingParams.nMDCTLinesLong, codingParams.sampleRate)
+        codingParams.sfBandsLong = ScaleFactorBands(nLinesLong)
         
         return
+        
 
 
     def WriteDataBlock(self,data, codingParams):
@@ -306,7 +331,22 @@ class PACFile(AudioFile):
 
         # combine this block of multi-channel data w/ the prior block's to prepare for MDCTs twice as long
         fullBlockData=[]
+        for iCh in range(codingParams.nChannels):
+            fullBlockData.append( np.concatenate( ( codingParams.priorBlock[iCh], data[iCh]) ) )
+        codingParams.priorBlock = data  # current pass's data is next pass's prior block data
+
+        #decide sfBands object based on window state
+        if(codingParams.win_state == 0):
+            codingParams.sfBands = codingParams.sfBandsLong
+        elif(codingParams.win_state == 2):
+            codingParams.sfBands = codingParams.sfBandsShort
+        else:
+            codingParams.sfBands = codingParams.sfBandsTrans
+                        
+        # (ENCODE HERE) Encode the full block of multi=channel data
+        (scaleFactor,bitAlloc,mantissa, overallScaleFactor) = self.Encode(fullBlockData,codingParams)  # returns a tuple with all the block-specific info not in the file header
         
+<<<<<<< HEAD
         # if status for data[iCh] is start or short
         
         #find out block length and number of subblocks for each window state
@@ -352,58 +392,56 @@ class PACFile(AudioFile):
 
             # print " LeData Being Encoded : " + str(fullBlockData)
             (scaleFactor,bitAlloc,mantissa, overallScaleFactor) = self.Encode(fullBlockData,codingParams)  # returns a tuple with all the block-specific info not in the file header
+=======
+        # for each channel, write the data to the output file
+        for iCh in range(codingParams.nChannels):
 
+            # determine the size of this channel's data block and write it to the output file
+            nBytes = codingParams.nScaleBits  # bits for overall scale factor
+            for iBand in range(codingParams.sfBands.nBands): # loop over each scale factor band to get its bits
+                nBytes += codingParams.nMantSizeBits+codingParams.nScaleBits    # mantissa bit allocation and scale factor for that sf band
+                if bitAlloc[iCh][iBand]:
+                    # if non-zero bit allocation for this band, add in bits for scale factor and each mantissa (0 bits means zero)
+                    nBytes += bitAlloc[iCh][iBand]*codingParams.sfBands.nLines[iBand]  # no bit alloc = 1 so actuall alloc is one higher
+            # end computing bits needed for this channel's data
 
-            # for each channel, write the data to the output file
-            for iCh in range(codingParams.nChannels):
-    
-                # determine the size of this channel's data block and write it to the output file
-                nBytes = codingParams.nScaleBits  # bits for overall scale factor
-                for iBand in range(codingParams.sfBands.nBands): # loop over each scale factor band to get its bits
-                    nBytes += codingParams.nMantSizeBits+codingParams.nScaleBits    # mantissa bit allocation and scale factor for that sf band
-                    if bitAlloc[iCh][iBand]:
-                        # if non-zero bit allocation for this band, add in bits for scale factor and each mantissa (0 bits means zero)
-                        nBytes += bitAlloc[iCh][iBand]*codingParams.sfBands.nLines[iBand]  # no bit alloc = 1 so actuall alloc is one higher
-                # end computing bits needed for this channel's data
-    
-                # CUSTOM DATA:
-                # < now can add space for custom data, if desired>
-                #add space for window_state
-                nBytes += 2
-    
-                # now convert the bits to bytes (w/ extra one if spillover beyond byte boundary)
-                if nBytes%BYTESIZE==0:  nBytes /= BYTESIZE
-                else: nBytes = nBytes/BYTESIZE + 1
-                self.fp.write(pack("<L",int(nBytes))) # stores size as a little-endian unsigned long
-    
-                # create a PackedBits object to hold the nBytes of data for this channel/block of coded data
-                pb = PackedBits()
-                pb.Size(nBytes)
-    
-                # CUSTOM DATA:
-                # < now can add in custom data if space allocated in nBytes above>
-                #to determine window state
-                pb.WriteBits(codingParams.win_state, 2)
-                
-                # now pack the nBytes of data into the PackedBits object
-                pb.WriteBits(overallScaleFactor[iCh],codingParams.nScaleBits)  # overall scale factor
-                iMant=0  # index offset in mantissa array (because mantissas w/ zero bits are omitted)
-                for iBand in range(codingParams.sfBands.nBands): # loop over each scale factor band to pack its data
-                    ba = bitAlloc[iCh][iBand]
-                    if ba: ba-=1  # if non-zero, store as one less (since no bit allocation of 1 bits/mantissa)
-                    pb.WriteBits(ba,codingParams.nMantSizeBits)  # bit allocation for this band (written as one less if non-zero)
-                    pb.WriteBits(scaleFactor[iCh][iBand],codingParams.nScaleBits)  # scale factor for this band (if bit allocation non-zero)
-                    if bitAlloc[iCh][iBand]:
-                        for j in range(codingParams.sfBands.nLines[iBand]):
-                            pb.WriteBits(mantissa[iCh][iMant+j],bitAlloc[iCh][iBand])     # mantissas for this band (if bit allocation non-zero) and bit alloc <>1 so is 1 higher than the number
-                        iMant += codingParams.sfBands.nLines[iBand]  # add to mantissa offset if we passed mantissas for this band
-                # done packing (end loop over scale factor bands)
-    
-                # finally, write the data in this channel's PackedBits object to the output file
-                self.fp.write(pb.GetPackedData())
-                # end loop over channels, done writing coded data for all channels
-        
-        #end loop over subblocks
+            # CUSTOM DATA:
+            # < now can add space for custom data, if desired>
+            nBytes += 2
+
+            # now convert the bits to bytes (w/ extra one if spillover beyond byte boundary)
+            if nBytes%BYTESIZE==0:  nBytes /= BYTESIZE
+            else: nBytes = nBytes/BYTESIZE + 1
+            self.fp.write(pack("<L",int(nBytes))) # stores size as a little-endian unsigned long
+
+            # create a PackedBits object to hold the nBytes of data for this channel/block of coded data
+            pb = PackedBits()
+            pb.Size(nBytes)
+            
+            #write window state
+            pb.WriteBits(codingParams.win_state,2)
+            
+            # now pack the nBytes of data into the PackedBits object
+            pb.WriteBits(overallScaleFactor[iCh],codingParams.nScaleBits)  # overall scale factor
+            iMant=0  # index offset in mantissa array (because mantissas w/ zero bits are omitted)
+            for iBand in range(codingParams.sfBands.nBands): # loop over each scale factor band to pack its data
+                ba = bitAlloc[iCh][iBand]
+                if ba: ba-=1  # if non-zero, store as one less (since no bit allocation of 1 bits/mantissa)
+                pb.WriteBits(ba,codingParams.nMantSizeBits)  # bit allocation for this band (written as one less if non-zero)
+                pb.WriteBits(scaleFactor[iCh][iBand],codingParams.nScaleBits)  # scale factor for this band (if bit allocation non-zero)
+                if bitAlloc[iCh][iBand]:
+                    for j in range(codingParams.sfBands.nLines[iBand]):
+                        pb.WriteBits(mantissa[iCh][iMant+j],bitAlloc[iCh][iBand])     # mantissas for this band (if bit allocation non-zero) and bit alloc <>1 so is 1 higher than the number
+                    iMant += codingParams.sfBands.nLines[iBand]  # add to mantissa offset if we passed mantissas for this band
+            # done packing (end loop over scale factor bands)
+>>>>>>> 193caf70f4f39c477fb5ca8881613aa86ef7acc9
+
+            # CUSTOM DATA:
+            # < now can add in custom data if space allocated in nBytes above>
+
+            # finally, write the data in this channel's PackedBits object to the output file
+            self.fp.write(pb.GetPackedData())
+        # end loop over channels, done writing coded data for all channels
         return
 
     def Close(self,codingParams):
@@ -414,7 +452,6 @@ class PACFile(AudioFile):
         # determine if encoding or encoding and, if encoding, do last block
         if self.fp.mode == "wb":  # we are writing to the PACFile, must be encode
             # we are writing the coded file -- pass a block of zeros to move last data block to other side of MDCT block
-            
             data = [ np.zeros(codingParams.nMDCTLines,dtype=np.float),
                      np.zeros(codingParams.nMDCTLines,dtype=np.float) ]
             self.WriteDataBlock(data, codingParams)
@@ -454,9 +491,13 @@ if __name__=="__main__":
     import time
     from pcmfile import * # to get access to WAV file handling
 
-    input_filename = "Castanets.wav"
+    input_filename = "audio/Castanets.wav"
     coded_filename = "coded.pac"
+<<<<<<< HEAD
     output_filename = "Castanets_output.wav"
+=======
+    output_filename = "audio/Castanets_bs_highDR.wav"
+>>>>>>> 193caf70f4f39c477fb5ca8881613aa86ef7acc9
 
     if len(sys.argv) > 1:
         input_filename = sys.argv[1]
@@ -466,9 +507,20 @@ if __name__=="__main__":
 
     print "\nRunning the PAC coder ({} -> {} -> {}):".format(input_filename, coded_filename, output_filename)
     elapsed = time.time()
+    
+    #windpw state object
+    W = WindowState()
+    nSubBlocks = 8
+    #some variables I want to keep tab of 
+    readSignal = np.array([], dtype = float)
+    writeSignal = np.array([], dtype = float)
+    transients = []
+    count = 1
+    countBlockEncode = 0
+    countBlockDecode = 0
 
     for Direction in ("Encode", "Decode"):
-  #  for Direction in ("Encode"):
+#    for Direction in ("Decode"):
 
         # create the audio file objects
         if Direction == "Encode":
@@ -497,7 +549,10 @@ if __name__=="__main__":
             nBitsPerBlock = dataRate/codingParams.sampleRate * codingParams.nMDCTLines
             codingParams.targetBitsPerSample = (nBitsPerBlock - 2*(4*25) - 4)/(codingParams.nMDCTLines)
             # tell the PCM file how large the block size is
-            codingParams.nSamplesPerBlock = codingParams.nMDCTLines
+            codingParams.nSamplesPerBlock = codingParams.nMDCTLines            
+            #keep track of window state
+            codingParams.win_state = 0
+            
         else: # "Decode"
             # set PCM parameters (the rest is same as set by PAC file on open)
             codingParams.bitsPerSample = 16
@@ -509,20 +564,11 @@ if __name__=="__main__":
 
         # Read the input file and pass its data to the output file to be written
         firstBlock = True  # when de-coding, we won't write the first block to the PCM file. This flag signifies that
-        W = WindowState()
-        #first block won't have transients since we are zero padding anyway
-        codingParams.win_state = W.state
-        curBlock = inFile.ReadDataBlock(codingParams)
-        
-#        #need a separate sfbands object to do this
-#        transient_sfbands = ScaleFactorBands(AssignMDCTLinesFromFreqLimits(codingParams.nMDCTLines/2, codingParams.sampleRate))
-#        percEntropy = [[] for i in range(codingParams.nChannels)]
-#        thres_change = 200
-#        thres_mag = 1000
-#        count = 0
-        
-        #start reading/writing data
+        #this is the block to be encoded
+        curBlock = [[] for x in range(codingParams.nChannels)]
+        transBlock = [[] for x in range(codingParams.nChannels)]
         while True:
+<<<<<<< HEAD
             
             count = 0
             nextBlock = inFile.ReadDataBlock(codingParams)  
@@ -530,10 +576,15 @@ if __name__=="__main__":
             if not curBlock: break  # we hit the end of the input file
         
             
+=======
+            data=inFile.ReadDataBlock(codingParams)
+            if not data: break  # we hit the end of the input file
+
+>>>>>>> 193caf70f4f39c477fb5ca8881613aa86ef7acc9
             # don't write the first PCM block (it corresponds to the half-block delay introduced by the MDCT)
             if firstBlock and Direction == "Decode":
-                
                 firstBlock = False
+<<<<<<< HEAD
                 #do transient detection while encoding only
 
                 curBlock[0] = np.copy(nextBlock[0])
@@ -544,47 +595,36 @@ if __name__=="__main__":
             #do block switching
 
             if nextBlock and Direction == "Encode":
-                
-                #find transient for each channel of data
-                 for iCh in range(codingParams.nChannels):
-                     
-                     #newBlock = np.concatenate([curBlock[iCh], nextBlock[iCh]])
-                     newBlock = nextBlock[iCh]
-                     
-#                     transient detection with perceptual entropy
-#                     #save current block to pass on to detectTransient function
-#                     dataBlock = newBlock
-#                     #window 2*nSamplesPerBlock set of samples
-#                     newBlock = win.KBDWindow(newBlock)
-#                     #MDCT
-#                     MDCTdata = m.MDCT(newBlock,codingParams.nSamplesPerBlock/2,codingParams.nSamplesPerBlock/2)
-#                     #find out MDCT scale
-#                     maxLine = np.max(np.abs(newBlock))
-#                     MDCTscale = qt.ScaleFactor(maxLine,codingParams.nScaleBits)
-#        
-#                     #find perceptual entropy for each channel
-#                     percEntropy[iCh].append(detectTransient(transient_sfbands, dataBlock, MDCTdata, MDCTscale, codingParams.sampleRate))
-#    
-#                     #detect transients by detecting change in PE from block to block    
-#                     if((count > 0 and percEntropy[iCh][count] - percEntropy[iCh][count-1] >= thres_change)
-#                        or percEntropy[iCh][count] > thres_mag):
-#                        is_transient = True
-#                     else:
-#                        is_transient = False
-                     
-                 #transient detection using Prateek's FFT Based method
-                 is_transient = transient_detection(newBlock)
-                 
-                 count += 1
-                
-                 #determine window state
-                 W.state = W.nextBuffer(is_transient)
-                 codingParams.win_state = W.state
+=======
+                continue
             
-            #write the current block with the correct window_state
-            outFile.WriteDataBlock(curBlock,codingParams)
-            curBlock = nextBlock
+            if Direction == "Encode" :
+                readSignal = np.concatenate([readSignal,data[0]])
+                countBlockEncode += 1
+            elif Direction == "Decode" :
+                writeSignal = np.concatenate([writeSignal, data[0]])
+                countBlockDecode += 1
+                
             
+            #while encoding
+            if Direction == "Encode" :
+>>>>>>> 193caf70f4f39c477fb5ca8881613aa86ef7acc9
+                
+                #detect transient in block
+                newBlock = np.copy(data[0])
+                is_transient = transient_detection(newBlock)
+                #is_transient = False
+                codingParams.win_state = W.nextBuffer(is_transient)
+                
+                if(is_transient):
+                    transients.append(count)
+                count += 1
+            
+                #print('Window state :' , codingParams.win_state)
+        
+                #depending on window state, send the right amount of data to be encoded            
+            
+<<<<<<< HEAD
             
             if codingParams.win_state == 0:
                 sys.stdout.write("_ ")  # just to signal how far we've gotten to user
@@ -594,7 +634,73 @@ if __name__=="__main__":
                 sys.stdout.write("^ ")
             else:
                 sys.stdout.write("\\ ")
+=======
+                if codingParams.win_state == 0:
+                    sys.stdout.write("_ ")  # just to signal how far we've gotten to user
+                elif codingParams.win_state == 1:
+                    sys.stdout.write("/ ")
+                elif codingParams.win_state == 2:
+                    sys.stdout.write("^ ")
+                else:
+                    sys.stdout.write("\\ ")
+                
+                #send to WriteDataBlock for encoding
+                if(codingParams.win_state == 0 or codingParams.win_state == 3):
+                    
+                        outFile.WriteDataBlock(data, codingParams)
+                        
+                elif(codingParams.win_state == 1):
+                        
+                        #encode start transition window
+                        for iCh in range(codingParams.nChannels):
+                            #first 64 samples
+                            curBlock[iCh] = data[iCh][:codingParams.nMDCTLinesShort]
+                        
+                        outFile.WriteDataBlock(curBlock, codingParams)
+                        
+                        #now code the short blocks
+                        codingParams.win_state = 2
+                        W.setState(2)
+                        
+                        for k in range(1,nSubBlocks):
+                            for iCh in range(codingParams.nChannels):
+                                transBlock[iCh] = data[iCh][np.arange(codingParams.nMDCTLinesShort) + k*codingParams.nMDCTLinesShort]
+                            
+                            outFile.WriteDataBlock(transBlock, codingParams) 
+                            
+                elif(codingParams.win_state == 2):
+                    
+                    print('Two consecutive transients')
+                    for k in range(nSubBlocks):
+                        for iCh in range(codingParams.nChannels):
+                            transBlock[iCh] = data[iCh][np.arange(codingParams.nMDCTLinesShort) + k*codingParams.nMDCTLinesShort]
+                            
+                        outFile.WriteDataBlock(transBlock, codingParams) 
+                            
+                else :
+                    raise ValueError('Invalid window state: ' + str(codingParams.win_state))
+            
+            #while decoding
+            elif Direction == "Decode":
+                
+                if codingParams.win_state == 0:
+                    sys.stdout.write("_ ")  # just to signal how far we've gotten to user
+                elif codingParams.win_state == 1:
+                    sys.stdout.write("/ ")
+                elif codingParams.win_state == 2:
+                    sys.stdout.write("^ ")
+                else:
+                    sys.stdout.write("\\ ")
+                    
+                outFile.WriteDataBlock(data, codingParams)
+                
+          
+            
+                        
+
+>>>>>>> 193caf70f4f39c477fb5ca8881613aa86ef7acc9
             #sys.stdout.write(".")  # just to signal how far we've gotten to user
+         
             sys.stdout.flush()
         # end loop over reading/writing the blocks
 
@@ -606,3 +712,19 @@ if __name__=="__main__":
     elapsed = time.time()-elapsed
     print "\nDone with Encode/Decode test\n"
     print elapsed ," seconds elapsed"
+    
+    
+    plt.figure
+    Fs = codingParams.sampleRate
+    #time vector
+    tr = np.arange(0, np.size(readSignal)/Fs, 1.0/Fs)
+    tw = np.arange(0, np.size(writeSignal)/Fs, 1.0/Fs)    
+    plt.subplot(211)
+    plt.plot(tr, readSignal)
+    plt.subplot(212)
+    plt.plot(tw, writeSignal)
+    plt.xlabel('Time in seconds')
+    plt.ylabel('Amplitude')
+    
+    print("Number of encoded blocks ", countBlockEncode)
+    print("Number of decoded blocks ", countBlockEncode)

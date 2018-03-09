@@ -97,10 +97,34 @@ def compose_kbd_window(dataSampleArray, left, right, left_alpha=4., right_alpha=
     b_ones = np.ones(2*right)
     b_window = KBDWindow(b_ones, alpha=right_alpha)[:right]
     b_window = b_window[::-1]
-
+    
     return dataSampleArray * np.concatenate([a_window, b_window])
     
     ### YOUR CODE ENDS HERE ###
+    
+    
+def compose_sine_window(dataSampleArray, left, right):
+    """ Compose a hybrid Kaiser-Bessel Derived window for block-switched MDCT
+    windows. Parameters left, right control the size of the window segments,
+    while the alpha parameters tune the frequency selectivity vs. rolloff. """
+
+    # Make sure that left + right is the size of the window provided
+    if left + right != len(dataSampleArray):
+        msg = 'Signal size, {} , must match the composed size left+right: {}' \
+               .format(str(len(dataSampleArray)), str(left+right))
+        raise ValueError(msg)
+    
+    # Create a window for size left
+    a_ones = np.ones(2*left)
+    a_window = SineWindow(a_ones)[:left]
+
+    # Create a window for size right
+    b_ones = np.ones(2*right)
+#    b_window = SineWindow(b_ones)[:right]
+#    b_window = b_window[::-1]
+    b_window = SineWindow(b_ones)[right:]
+    return dataSampleArray * np.concatenate([a_window, b_window])
+
 
 
 #-----------------------------------------------------------------------------
