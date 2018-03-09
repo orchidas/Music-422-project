@@ -168,7 +168,7 @@ def getMaskedThreshold(data, MDCTdata, MDCTscale, sampleRate, sfBands):
     #do fft
     N = np.size(data)
     X_fft = np.fft.fft(data)
-    X_fft = X_fft[:N/2]
+    X_fft = X_fft[:int(N/2)]
     
     #find tonal maskers        
     (peak_SPL, peak_freq) = findPeakSPLandFreq(X_fft, N, sampleRate, 'rect')
@@ -274,7 +274,7 @@ def findPeakSPLandFreq(X_fft, N, Fs, win):
     peak_SPL = SPL(peak_inten[peakPos] + peak_inten[peakPos-1] + peak_inten[peakPos+1])
     freqs_fft = np.linspace(0,Fs/2,N/2+1)
     #omit last half samples
-    freqs_fft = freqs_fft[:N/2]
+    freqs_fft = freqs_fft[:int(N/2)]
      
     #intensity weighted average frequency for peak bin
     for l in range(npeaks):

@@ -59,7 +59,7 @@ def transient_detection(data):
     """Transient detection using weighted FFT"""
     
     N_half = len(data)/2
-    fftData = np.fft.fft(data)[ : N_half]
+    fftData = np.fft.fft(data)[ : int(N_half)]
     #threshold_energy = 0.14
     threshold_energy = 50
     #weights = np.ones(N_half)
@@ -69,8 +69,9 @@ def transient_detection(data):
 
     # print weights
     E = np.sum(weights*np.abs(fftData))/ (N_half)
- 
-    return E > threshold_energy
+    
+    return (E > threshold_energy)
+    #return (E > threshold_energy,E)
     
 #-----------------------------------------------------------------------------
     
@@ -88,7 +89,7 @@ class WindowState(object):
 
     def transient(self):
         """ Internal method to transition state based on onset presence """
-        #if next buffer is detected as a transient
+        #if buffer is detected as a transient
         if self.state == 0:
             #long window to transition window
             self.state = 1
@@ -105,12 +106,12 @@ class WindowState(object):
 
     def no_transient(self):
         """ Internal method to transition state when no onset is present. """
-        #if next buffer is not a transient
+        #if buffer is not a transient
         if self.state == 0:
             #if not a transient, keep using long windows
             self.state = 0
         elif self.state == 1:
-            #if next buffer is not a transient and we are using a transition window,
+            #if buffer is not a transient and we are using a transition window,
             #keep using short windows
             self.state = 2
         elif self.state == 2:
@@ -121,6 +122,9 @@ class WindowState(object):
             self.state = 0
 
         return self.state
+        
+    def setState(self, state):
+        self.state = state
 
 #-----------------------------------------------------------------------------
 
