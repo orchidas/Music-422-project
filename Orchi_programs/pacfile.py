@@ -196,7 +196,6 @@ class PACFile(AudioFile):
             
             #read window state
             codingParams.win_state = pb.ReadBits(2)
-            #print(codingParams.win_state)
             
             #determine block size and overlap add factors given window state
             if codingParams.win_state == 0:
@@ -251,8 +250,6 @@ class PACFile(AudioFile):
             data[iCh] = np.concatenate( (data[iCh],np.add(codingParams.overlapAndAdd[iCh],decodedData[:codingParams.a]) ) )  # data[iCh] is overlap-and-added data
             codingParams.overlapAndAdd[iCh] = decodedData[codingParams.a:]  # save other half for next pass
             
-            #if(codingParams.win_state != 0):
-        print(codingParams.win_state, np.shape(data), codingParams.sfBands.nLines)
 
         # end loop over channels, return signed-fraction samples for this block
         return data
@@ -329,8 +326,6 @@ class PACFile(AudioFile):
         else:
             codingParams.sfBands = codingParams.sfBandsTrans
             
-#        if(codingParams.win_state != 0):
-#            print(codingParams.win_state, np.shape(fullBlockData), codingParams.sfBands.nLines)
                         
         # (ENCODE HERE) Encode the full block of multi=channel data
         (scaleFactor,bitAlloc,mantissa, overallScaleFactor) = self.Encode(fullBlockData,codingParams)  # returns a tuple with all the block-specific info not in the file header
@@ -432,9 +427,9 @@ if __name__=="__main__":
     import time
     from pcmfile import * # to get access to WAV file handling
 
-    input_filename = "audio/Castanets_1T.wav"
+    input_filename = "audio/Castanets.wav"
     coded_filename = "coded.pac"
-    output_filename = "audio/Castanets_output.wav"
+    output_filename = "audio/Castanets_bs_highDR.wav"
 
     if len(sys.argv) > 1:
         input_filename = sys.argv[1]
@@ -527,14 +522,11 @@ if __name__=="__main__":
                 #detect transient in block
                 newBlock = np.copy(data[0])
                 is_transient = transient_detection(newBlock)
-                #is_transient = False
                 codingParams.win_state = W.nextBuffer(is_transient)
                 
                 if(is_transient):
                     transients.append(count)
                 count += 1
-            
-                #print('Window state :' , codingParams.win_state)
         
                 #depending on window state, send the right amount of data to be encoded            
             
@@ -569,7 +561,6 @@ if __name__=="__main__":
                             for iCh in range(codingParams.nChannels):
                                 start = k*codingParams.nMDCTLinesShort
                                 transBlock[iCh] = data[iCh][start:start+codingParams.nMDCTLinesShort]
-                                #transBlock[iCh] = data[iCh][np.arange(codingParams.nMDCTLinesShort) + k*codingParams.nMDCTLinesShort]
                             
                             outFile.WriteDataBlock(transBlock, codingParams) 
                             
@@ -598,12 +589,7 @@ if __name__=="__main__":
                     sys.stdout.write("\\ ")
                     
                 outFile.WriteDataBlock(data, codingParams)
-                
-          
             
-                        
-
-            #sys.stdout.write(".")  # just to signal how far we've gotten to user
          
             sys.stdout.flush()
         # end loop over reading/writing the blocks
@@ -623,7 +609,7 @@ if __name__=="__main__":
     #extra block is added to writeSignal for some reason
     writeSignal = writeSignal[:-512]
     #to plot start and stop transient block
-    transients.append(transients[0]+1)
+    #transients.append(transients[0]+1)
     transient_pos = (np.array(transients)-1) * 512.
     
     #time vector

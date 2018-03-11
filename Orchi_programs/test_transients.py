@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 
 # create the audio file objects of the appropriate audioFile type
-inFile= PCMFile("Castanets.wav")
+inFile= PCMFile("audio/Castanets.wav")
 
 # open input file and get its coding parameters
 codingParams= inFile.OpenForReading()
@@ -72,10 +72,7 @@ while True:
 #            transients[iCh].append(False)
             
         #using Prateek's FFT transient detector
-        (tr,en) = bs.transient_detection(newBlock)
-        #transients[iCh].append(bs.transient_detection(newBlock))
-        transients[iCh].append(tr)
-        E[iCh].append(en)
+        transients[iCh].append(bs.transient_detection(newBlock))
     
 #    count += 1
                    

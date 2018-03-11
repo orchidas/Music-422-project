@@ -72,12 +72,8 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
 
     # IMDCT and window the data for this channel
     mdctData =  IMDCT(mdctLine, codingParams.a, codingParams.b)
-    #data = win.compose_kbd_window(mdctData, codingParams.a, codingParams.b, 4., 4.)# takes in halfN MDCT coeffs
-    data = win.compose_sine_window(mdctData, codingParams.a, codingParams.b)
-
-    # end loop over channels, return reconstituted time samples (pre-overlap-and-add)
-    #if(codingParams.win_state != 0):
-    #    print(codingParams.win_state, np.shape(data), codingParams.sfBands.nLines)
+    data = win.compose_kbd_window(mdctData, codingParams.a, codingParams.b, 4., 4.)# takes in halfN MDCT coeffs
+    #data = win.compose_sine_window(mdctData, codingParams.a, codingParams.b)
         
     return data
 
@@ -144,9 +140,7 @@ def EncodeSingleChannel(data,codingParams):
     
     # vectorizing the Mantissa function call
     #vMantissa = np.vectorize(Mantissa)
-    
-#    if(codingParams.win_state != 0):
-#        print(codingParams.win_state, np.shape(data), sfBands.nLines)
+
 
     # compute target mantissa bit budget for this block of halfN MDCT mantissas
     bitBudget = codingParams.targetBitsPerSample * halfN  # this is overall target bit rate
@@ -154,8 +148,8 @@ def EncodeSingleChannel(data,codingParams):
     bitBudget -= codingParams.nMantSizeBits*sfBands.nBands  # less mantissa bit allocation bits
 
         
-    #mdctTimeSamples = win.compose_kbd_window(data, codingParams.a, codingParams.b, 4., 4.)
-    mdctTimeSamples = win.compose_sine_window(data, codingParams.a, codingParams.b)
+    mdctTimeSamples = win.compose_kbd_window(data, codingParams.a, codingParams.b, 4., 4.)
+    #mdctTimeSamples = win.compose_sine_window(data, codingParams.a, codingParams.b)
     mdctLines = MDCT(mdctTimeSamples, codingParams.a, codingParams.b)
 
     # compute overall scale factor for this block and boost mdctLines using it

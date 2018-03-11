@@ -5,9 +5,12 @@
 ### ADD YOUR CODE AT THE SPECIFIED LOCATIONS ###
 
 import numpy as np
+import time 
+import window as win
+import matplotlib.pyplot as plt
+
 
 ### Problem 1.a ###
-
 def MDCTslow(data, a, b, isInverse=False):
     """
     Slow MDCT algorithm for window length a+b following pp. 130 of
@@ -18,43 +21,27 @@ def MDCTslow(data, a, b, isInverse=False):
     """
 
     ### YOUR CODE STARTS HERE ###
-
-    NhalfLength = (a + b)/2
-
-    kFreq = np.arange(0,NhalfLength)
-    nTime = np.arange(0,2*NhalfLength)
-
-
-    N0 = (1.0 + b)/2.0
-
-
-    if isInverse:
+    N = a+b
+    n = np.arange(0,N)
+    n0 = (b+1.0)/2
+    temp = np.copy(data)    
+    
+    if(isInverse is False):
+    #compute MDCT
+        for k in range(0,N/2):
+            data[k] = 2.0/N * np.sum(temp * np.cos(2*np.pi/N * (n + n0)*(k + 0.5)))
+       
+        temp = np.copy(data[:N/2])
+        k = np.arange(0,N/2)
+    
+    else:   
+    #compute IMDCT 
+        for n in range(0,N):
+            data[n] = 2.0*np.sum(temp * np.cos(2*np.pi/N*(n + n0)*(k + 0.5)))
         
-
-        slowIMDCT = np.zeros(2*NhalfLength , dtype = float)
-
-        for i in nTime:
-
-            slowIMDCT[i] = np.sum(data*np.cos(2 * np.pi * (kFreq + 0.5) * (i + N0) / (2*NhalfLength)))
-
-        slowIMDCT *= 2
-
-        return slowIMDCT
-
-
-    else : 
         
-
-        slowMDCT = np.zeros(NhalfLength , dtype = float)
-
-        for i in kFreq:
-
-            slowMDCT[i] = np.sum(data*np.cos(2 * np.pi * (i + 0.5) * (nTime + N0)/(2*NhalfLength)))
-
-        slowMDCT *= 1.0/NhalfLength
-
-
-        return slowMDCT
+    #return np.zeros_like( data ) # CHANGE THIS
+    return data
 
     ### YOUR CODE ENDS HERE ###
 
@@ -66,59 +53,49 @@ def MDCT(data, a, b, isInverse=False):
     (and where 2/N factor is included in forward transform instead of inverse)
     a: left half-window length
     b: right half-window length
+    
     """
-
-
+        
     ### YOUR CODE STARTS HERE ###
-
-
-    NhalfLength = (a + b)/2
-
-
-    kFreq = np.arange(0,NhalfLength)
-    nTime = np.arange(0,2*NhalfLength)
-
-
-    N0 = (1.0 + b)/2.0
-
-
-    if isInverse : 
-
-
-        preTwiddle = np.exp((np.pi * 2j * N0/(2*NhalfLength))* np.arange(2*NhalfLength, dtype = float))
-
-        postTwiddle = (2*NhalfLength) * np.exp ( (1j* np.pi / (2*NhalfLength)) * np.linspace(N0 , 2*NhalfLength + N0 - 1 , 2*NhalfLength))
-
-        newData = np.concatenate((data, -np.flip(data,0)))
-
-        fastIMDCT = np.real(postTwiddle * np.fft.ifft(preTwiddle * newData))
-
-
-        return fastIMDCT
-
-
-    else : 
-
-        preTwiddle = data*np.exp((np.pi * (-1j)/(2*NhalfLength))* np.arange(2*NhalfLength, dtype = float))
-
-        postTwiddle = (1.0/NhalfLength)*np.exp (( -2j * np.pi * N0 / (2*NhalfLength)) * np.linspace(0.5 , NhalfLength - 0.5 , NhalfLength))
-
-        preTwiddlePositiveFFT = np.fft.fft(preTwiddle)[ : NhalfLength]
-
-        fastMDCT = np.real(postTwiddle * preTwiddlePositiveFFT)
-
-        return fastMDCT
-
-
+    N = a+b
+    n0 = (b+1.0)/2.0
+    n = np.arange(0,N)
+    k = np.arange(0,N/2)
+    
+    if(isInverse is False):
+        
+        pre_twiddle = np.exp(-1j*np.pi*n/N)
+        data = pre_twiddle * data
+        fft_data = np.fft.fft(data)
+        post_twiddle = np.exp(-1j*2*np.pi/N*n0*(k+0.5))*(2.0/N)
+        data = np.real(post_twiddle*fft_data[:N/2])
+    
+    else:
+        data = IMDCT(data, a, b)
+    
+    return data
 
     ### YOUR CODE ENDS HERE ###
 
 def IMDCT(data,a,b):
 
     ### YOUR CODE STARTS HERE ###
+    N = a+b
+    n0 = (b+1.0)/2.0
+    n = np.arange(0,N)
+    k = np.arange(0,N)
+    
+    #a[::-1] flips the data
+    conc_data = np.concatenate([data, -data[::-1]])    
+    pre_twiddle = np.exp(1j * 2*np.pi/N * n0 * k)
+    data = pre_twiddle * conc_data
+    ifft_data =  np.fft.ifft(data)
+    post_twiddle = np.exp(1j*np.pi/N*(n+n0))*N
+    data = np.real(post_twiddle * ifft_data)
+            
 
-    return MDCT(data , a , b , isInverse = True) 
-
+    return data
+    # CHANGE THIS
     ### YOUR CODE ENDS HERE ###
 
 #-----------------------------------------------------------------------------
@@ -128,24 +105,103 @@ if __name__ == "__main__":
 
     ### YOUR TESTING CODE STARTS HERE ###
 
-            x = np.array([3, 3, 3, 3, 2 , 1 , 0, -1, -2, -3, -4, -4], dtype = float)
-
-            a = 4
-            b = a
-
-            newLen = a + b + len(x)
-
-            xout = np.zeros(0, dtype = float)
-            priorBlock = np.zeros(a, dtype = float)
-            for n in range(newLen / a - 1):
-                newData = np.concatenate((np.zeros(a), x, np.zeros(b)))[a * n:b * n + (a+b)]/np.sqrt(2.0)
-                MDCTout = MDCTslow(newData, a, b)
-                IMDCToutput = MDCTslow(MDCTout, a, b,True)/np.sqrt(2.0)
-                xout = np.append(xout, IMDCToutput[:b] + priorBlock)
-                priorBlock = IMDCToutput[a:]
-
-            print 'Input :', str(x)
-            print 'Output :', str(xout)
+    #Q1b
+    x = np.array([3,3,3,3,2,1,0,-1,-2,-3,-4,-4], dtype = float)
+    x_prev = np.zeros(4, dtype = float)
+   
+    
+    for i in range(4):
         
+        if(i == 3):
+            x_cur = np.zeros(4)
+        else:
+            x_cur = x[i*4:(i+1)*4]
+            
+        y = np.append(x_prev, x_cur)
+        
+        #do MDCT and inverse MDCT
+        
+        #slow MDCT        
+        #res_cur = MDCTslow(y, 4, 4)
+        
+        #fast MDCT/IMDCT
+        res_cur = MDCT(y,4,4,False)
+        res_cur = IMDCT(res_cur,4,4)
+        
+        res_cur = res_cur/2.0
+        
+        if(i == 0):
+            res = np.zeros(4, dtype = float)
+        else:
+            res = np.append(res, (res_prev+res_cur[:4]))
+        
+        res_prev = res_cur[4:]
+        x_prev = x_cur
+        
+    print(res)
+
+############################################################################
+    
+    #Q1c     
+    #test time for MDCT and fast MDCT
+#    x = np.random.randn(2048)
+#    temp = np.copy(x)
+#    
+#    t_slow = time.time()
+#    res = MDCTslow(x,1024,1024)
+#    t_slow = time.time() - t_slow
+#    
+#    t_fast = time.time()
+#    res = MDCT(temp,1024,1024,True)
+#    t_fast = time.time() - t_fast
+#    
+#    print(t_slow/t_fast)
+
+###########################################################################
+
+    #Q1f
+    N = 1024
+    n = np.arange(N)
+    fs = 44100.0
+    x = np.cos(2*np.pi*3000*n/fs)
+    x1 = np.copy(x)
+    x2 = np.copy(x)
+        
+    x_sine = win.SineWindow(x)
+    X_sine_fft = np.fft.fft(x_sine)
+    #we put 2/N in the forward transform, so we need to remove a factor of 4/N^2
+    sine_FFT_spl = 96 + 10*np.log10(4.0/((N**2)*0.5)*(np.abs(X_sine_fft)**2))
+    X_sine_MDCT = MDCT(x_sine,512,512,False)
+    sine_MDCT_spl = 96 + 10*np.log10(4.0*(np.abs(X_sine_MDCT)**2))
+    
+    x_hann = win.HanningWindow(x1)
+    X_hann_fft = np.fft.fft(x_hann)
+    hann_FFT_spl = 96 + 10*np.log10(4.0/((N**2)*0.375)*(np.abs(X_hann_fft)**2))
+    
+    freqs_fft = np.linspace(0,fs/2,N/2+1)
+    #omit last half of spectrum because it is symmetric
+    freqs_fft = freqs_fft[:N/2]
+    freqs_mdct = np.linspace(0,fs/2,N/2+1)
+    freqs_mdct = freqs_mdct[:N/2]
+    
+    plt.figure()
+    plt.subplot(2,1,1)
+    plt.plot(n, x_sine)
+    plt.subplot(2,1,2)
+    plt.plot(n, x_hann)
+    
+    ax = plt.figure()
+    plt.plot(freqs_fft,sine_FFT_spl[:N/2],'r', label = 'Sine window FFT')
+    plt.plot(freqs_mdct, sine_MDCT_spl,'b', label = 'Sine window MDCT')
+    plt.plot(freqs_fft, hann_FFT_spl[:N/2],'g', label = 'Hann window FFT')    
+    plt.xlabel('Frequency in Hz')
+    plt.ylabel('SPL in dB')
+    plt.legend()
+    plt.show()
+
+    
+    
+    pass # THIS DOES NOTHING
+
     ### YOUR TESTING CODE ENDS HERE ###
 
