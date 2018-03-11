@@ -123,7 +123,14 @@ def compose_sine_window(dataSampleArray, left, right):
 #    b_window = SineWindow(b_ones)[:right]
 #    b_window = b_window[::-1]
     b_window = SineWindow(b_ones)[right:]
-    return dataSampleArray * np.concatenate([a_window, b_window])
+    w = np.concatenate([a_window, b_window])
+    
+    if left == 64 or right == 64:
+        plt.figure()
+        plt.plot(w)
+        plt.show()
+        
+    return (dataSampleArray * w)
 
 
 
