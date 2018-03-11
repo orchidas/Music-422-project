@@ -1,0 +1,12 @@
+Pg 341 - MPEG-2 AAC
+Pg 379 - dolby AC3
+Perceptual entropy - avg no of bits/block , overall number of bits/block,
+compute SMR for each band - 6dB for each SMR, find number of bits ,avg number of bits per band Pg 295, threshold of perceptual entropy is wrong in book 
+Edler block switching - 133
+AC2A - 136
+
+Look ahead for transient detection, look to the next block to see if there is a transient, modify 
+Send window information - 4 types of windows (start transition, short, long, stop transition), 2 bits needed
+codec.py, pacfile.py
+
+Atsc document number A52
