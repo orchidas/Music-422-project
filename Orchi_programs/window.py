@@ -95,9 +95,14 @@ def compose_kbd_window(dataSampleArray, left, right, left_alpha=4., right_alpha=
 
     # Create a window for size right
     b_ones = np.ones(2*right)
-    b_window = KBDWindow(b_ones, alpha=right_alpha)[:right]
-    b_window = b_window[::-1]
+    b_window = KBDWindow(b_ones, alpha=right_alpha)[right:]
     
+    #for plotting only    
+#    if(left == 64 or right == 64):
+#        plt.figure
+#        plt.plot(np.concatenate([a_window, b_window]))
+#        plt.show()
+        
     return dataSampleArray * np.concatenate([a_window, b_window])
     
     ### YOUR CODE ENDS HERE ###
@@ -120,10 +125,10 @@ def compose_sine_window(dataSampleArray, left, right):
 
     # Create a window for size right
     b_ones = np.ones(2*right)
-#    b_window = SineWindow(b_ones)[:right]
-#    b_window = b_window[::-1]
     b_window = SineWindow(b_ones)[right:]
-    return dataSampleArray * np.concatenate([a_window, b_window])
+    w = np.concatenate([a_window, b_window])
+            
+    return (dataSampleArray * w)
 
 
 

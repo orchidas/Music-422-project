@@ -28,30 +28,31 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
     if codingParams.win_state == 0 :
         codingParams.a = codingParams.nMDCTLinesLong
         codingParams.b = codingParams.nMDCTLinesLong
-        f_alpha = l_alpha = 4.
+        #f_alpha = l_alpha = 4.
     
     #next block is a short block
     elif codingParams.win_state == 1:
         codingParams.a = codingParams.nMDCTLinesLong
         codingParams.b = codingParams.nMDCTLinesShort
-        f_alpha = 4.
-        l_alpha = 6.
+        #f_alpha = 4.
+        #l_alpha = 6.
     
     #next block is a stop transition block
     elif codingParams.win_state == 2:
         codingParams.a = codingParams.nMDCTLinesShort
         codingParams.b = codingParams.nMDCTLinesShort
-        f_alpha = l_alpha = 6.
+        #f_alpha = l_alpha = 6.
  
     #next block is a short block after a 
     elif codingParams.win_state == 3:
         codingParams.a = codingParams.nMDCTLinesShort
         codingParams.b = codingParams.nMDCTLinesLong
-        f_alpha = 6.
-        l_alpha = 4.
+        #f_alpha = 6.
+        #l_alpha = 4.
  
     else:
         raise ValueError('Unknown window state:' + str(codingParams.win_state))
+        
         
     halfN = (codingParams.a + codingParams.b)/2
     N = 2*halfN
@@ -71,10 +72,9 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
 
     # IMDCT and window the data for this channel
     mdctData =  IMDCT(mdctLine, codingParams.a, codingParams.b)
-    #data = win.compose_kbd_window(mdctData, codingParams.a, codingParams.b, 4., 4.)# takes in halfN MDCT coeffs
-    data = win.compose_sine_window(mdctData, codingParams.a, codingParams.b)
-
-    # end loop over channels, return reconstituted time samples (pre-overlap-and-add)
+    data = win.compose_kbd_window(mdctData, codingParams.a, codingParams.b, 4., 4.)# takes in halfN MDCT coeffs
+    #data = win.compose_sine_window(mdctData, codingParams.a, codingParams.b)
+        
     return data
 
 
@@ -137,8 +137,10 @@ def EncodeSingleChannel(data,codingParams):
     maxMantBits = (1<<codingParams.nMantSizeBits)  # 1 isn't an allowed bit allocation so n size bits counts up to 2^n
     if maxMantBits>16: maxMantBits = 16  # to make sure we don't ever overflow mantissa holders
     sfBands = codingParams.sfBands
+    
     # vectorizing the Mantissa function call
     #vMantissa = np.vectorize(Mantissa)
+
 
     # compute target mantissa bit budget for this block of halfN MDCT mantissas
     bitBudget = codingParams.targetBitsPerSample * halfN  # this is overall target bit rate
@@ -146,8 +148,8 @@ def EncodeSingleChannel(data,codingParams):
     bitBudget -= codingParams.nMantSizeBits*sfBands.nBands  # less mantissa bit allocation bits
 
         
-    #mdctTimeSamples = win.compose_kbd_window(data, codingParams.a, codingParams.b, 4., 4.)
-    mdctTimeSamples = win.compose_sine_window(data, codingParams.a, codingParams.b)
+    mdctTimeSamples = win.compose_kbd_window(data, codingParams.a, codingParams.b, 4., 4.)
+    #mdctTimeSamples = win.compose_sine_window(data, codingParams.a, codingParams.b)
     mdctLines = MDCT(mdctTimeSamples, codingParams.a, codingParams.b)
 
     # compute overall scale factor for this block and boost mdctLines using it
@@ -164,6 +166,7 @@ def EncodeSingleChannel(data,codingParams):
 
     # given the bit allocations, quantize the mdct lines in each band
     scaleFactor = np.empty(sfBands.nBands,dtype=np.int32)
+    
     nMant=halfN
     for iBand in range(sfBands.nBands):
         if not bitAlloc[iBand]: nMant-= sfBands.nLines[iBand]  # account for mantissas not being transmitted

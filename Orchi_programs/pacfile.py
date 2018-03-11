@@ -196,7 +196,6 @@ class PACFile(AudioFile):
             
             #read window state
             codingParams.win_state = pb.ReadBits(2)
-            #print(codingParams.win_state)
             
             #determine block size and overlap add factors given window state
             if codingParams.win_state == 0:
@@ -223,6 +222,7 @@ class PACFile(AudioFile):
             
             else:
                 raise ValueError('Invalid window state: ' + str(codingParams.win_state))
+                
 
             # extract the data from the PackedBits object
             overallScaleFactor = pb.ReadBits(codingParams.nScaleBits)  # overall scale factor
@@ -249,6 +249,7 @@ class PACFile(AudioFile):
             decodedData = self.Decode(scaleFactor,bitAlloc,mantissa, overallScaleFactor,codingParams)
             data[iCh] = np.concatenate( (data[iCh],np.add(codingParams.overlapAndAdd[iCh],decodedData[:codingParams.a]) ) )  # data[iCh] is overlap-and-added data
             codingParams.overlapAndAdd[iCh] = decodedData[codingParams.a:]  # save other half for next pass
+            
 
         # end loop over channels, return signed-fraction samples for this block
         return data
@@ -324,6 +325,7 @@ class PACFile(AudioFile):
             codingParams.sfBands = codingParams.sfBandsShort
         else:
             codingParams.sfBands = codingParams.sfBandsTrans
+            
                         
         # (ENCODE HERE) Encode the full block of multi=channel data
         (scaleFactor,bitAlloc,mantissa, overallScaleFactor) = self.Encode(fullBlockData,codingParams)  # returns a tuple with all the block-specific info not in the file header
@@ -427,7 +429,7 @@ if __name__=="__main__":
 
     input_filename = "audio/Castanets.wav"
     coded_filename = "coded.pac"
-    output_filename = "audio/Castanets_output.wav"
+    output_filename = "audio/Castanets_bs_highDR.wav"
 
     if len(sys.argv) > 1:
         input_filename = sys.argv[1]
@@ -475,7 +477,7 @@ if __name__=="__main__":
             codingParams.nMantSizeBits = 4
             #codingParams.targetBitsPerSample = 5.34/2
             #set target bits per sample for given datarate 
-            dataRate = 705600
+            dataRate = 320000
             nBitsPerBlock = dataRate/codingParams.sampleRate * codingParams.nMDCTLines
             codingParams.targetBitsPerSample = (nBitsPerBlock - 2*(4*25) - 4)/(codingParams.nMDCTLines)
             # tell the PCM file how large the block size is
@@ -520,14 +522,11 @@ if __name__=="__main__":
                 #detect transient in block
                 newBlock = np.copy(data[0])
                 is_transient = transient_detection(newBlock)
-                #is_transient = False
                 codingParams.win_state = W.nextBuffer(is_transient)
                 
                 if(is_transient):
                     transients.append(count)
                 count += 1
-            
-                #print('Window state :' , codingParams.win_state)
         
                 #depending on window state, send the right amount of data to be encoded            
             
@@ -560,7 +559,8 @@ if __name__=="__main__":
                         
                         for k in range(1,nSubBlocks):
                             for iCh in range(codingParams.nChannels):
-                                transBlock[iCh] = data[iCh][np.arange(codingParams.nMDCTLinesShort) + k*codingParams.nMDCTLinesShort]
+                                start = k*codingParams.nMDCTLinesShort
+                                transBlock[iCh] = data[iCh][start:start+codingParams.nMDCTLinesShort]
                             
                             outFile.WriteDataBlock(transBlock, codingParams) 
                             
@@ -589,12 +589,7 @@ if __name__=="__main__":
                     sys.stdout.write("\\ ")
                     
                 outFile.WriteDataBlock(data, codingParams)
-                
-          
             
-                        
-
-            #sys.stdout.write(".")  # just to signal how far we've gotten to user
          
             sys.stdout.flush()
         # end loop over reading/writing the blocks
@@ -611,13 +606,24 @@ if __name__=="__main__":
     
     plt.figure
     Fs = codingParams.sampleRate
+    #extra block is added to writeSignal for some reason
+    writeSignal = writeSignal[:-512]
+    #to plot start and stop transient block
+    #transients.append(transients[0]+1)
+    transient_pos = (np.array(transients)-1) * 512.
+    
     #time vector
     tr = np.arange(0, np.size(readSignal)/Fs, 1.0/Fs)
     tw = np.arange(0, np.size(writeSignal)/Fs, 1.0/Fs)    
     plt.subplot(211)
     plt.plot(tr, readSignal)
+    xcoords = transient_pos/Fs
+    for xc in xcoords:
+        plt.axvline(x=xc, color = 'r', linestyle = '--')
     plt.subplot(212)
     plt.plot(tw, writeSignal)
+    for xc in xcoords:
+        plt.axvline(x=xc, color = 'r', linestyle = '--')
     plt.xlabel('Time in seconds')
     plt.ylabel('Amplitude')
     
