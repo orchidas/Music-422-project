@@ -59,7 +59,7 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
     #vDequantize = np.vectorize(Dequantize)
 
     # reconstitute the first halfN MDCT lines of this channel from the stored data
-    mdctLine = np.zeros(int(halfN),dtype=np.float64)
+    mdctLine = np.zeros(halfN,dtype=np.float64)
     iMant = 0
     for iBand in range(codingParams.sfBands.nBands):
         nLines =codingParams.sfBands.nLines[iBand]
@@ -70,35 +70,9 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams):
 
 
     # IMDCT and window the data for this channel
-<<<<<<< HEAD
-    #data = win( IMDCT(mdctLine, halfN, halfN) )  # takes in halfN MDCT coeffs
-    half_long = 512
-    half_short = 64
-    
-    #correct inverse MDCT based on window state
-    if codingParams.win_state == 0:
-        mdctLine = IMDCT(mdctLine, half_long, half_long)
-        data = win.compose_kbd_window(mdctLine, half_long, half_long, 4., 4.)
-    
-    elif codingParams.win_state == 1:
-        mdctLine = IMDCT(mdctLine, half_long, half_long)
-        data = win.compose_kbd_window(mdctLine, half_long, half_short, 4., 4.)
-       
-    elif codingParams.win_state == 2:
-        mdctLine = IMDCT(mdctLine, half_short, half_short)
-        data = win.compose_kbd_window(mdctLine, half_short, half_short, 4., 4.)
-        
-    elif codingParams.win_state == 3:
-        mdctLine = IMDCT(mdctLine, half_short, half_long)
-        data = win.compose_kbd_window(mdctLine, half_short, half_long, 4., 4.)
-    
-    else:
-        raise ValueError('Unknown window state:' + str(codingParams.win_state))
-=======
     mdctData =  IMDCT(mdctLine, codingParams.a, codingParams.b)
     #data = win.compose_kbd_window(mdctData, codingParams.a, codingParams.b, 4., 4.)# takes in halfN MDCT coeffs
     data = win.compose_sine_window(mdctData, codingParams.a, codingParams.b)
->>>>>>> 193caf70f4f39c477fb5ca8881613aa86ef7acc9
 
     # end loop over channels, return reconstituted time samples (pre-overlap-and-add)
     return data
@@ -125,22 +99,7 @@ def Encode(data,codingParams):
 def EncodeSingleChannel(data,codingParams):
     """Encodes a single-channel block of signed-fraction data based on the parameters in a PACFile object"""
 
-<<<<<<< HEAD
-    # prepare various constants
-    halfN = codingParams.nMDCTLines
-    N = 2*halfN
-    
-    nScaleBits = codingParams.nScaleBits
-    maxMantBits = (1<<codingParams.nMantSizeBits)  # 1 isn't an allowed bit allocation so n size bits counts up to 2^n
-    if maxMantBits > 16: maxMantBits = 16  # to make sure we don't ever overflow mantissa holders
-    sfBands = codingParams.sfBands
-    # vectorizing the Mantissa function call
-    #vMantissa = np.vectorize(Mantissa)
-    
-    # window data for side chain FFT and also window and compute MDCT based on right windpw state
-=======
     # window data for side chain FFT and also window and compute MDCT
->>>>>>> 193caf70f4f39c477fb5ca8881613aa86ef7acc9
     timeSamples = data
     
     if codingParams.win_state == 0 :
@@ -169,7 +128,6 @@ def EncodeSingleChannel(data,codingParams):
 #        l_alpha = 4.
  
     else:
-
         raise ValueError('Unknown window state:' + str(codingParams.win_state))
         
     # prepare various constants
