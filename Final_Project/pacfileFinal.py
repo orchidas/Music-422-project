@@ -399,9 +399,9 @@ if __name__=="__main__":
     from pcmfile import * # to get access to WAV file handling
 
     myhuffyman = Huffman()
-    input_filename = "inputs/abbaSmall.wav"
-    coded_filename = "outputs/abba.pac"
-    output_filename = "outputs/abba.wav"
+    input_filename = "inputs/castanets.wav"
+    coded_filename = "outputs/castanets.pac"
+    output_filename = "outputs/castanets.wav"
 
 
     if len(sys.argv) > 1:

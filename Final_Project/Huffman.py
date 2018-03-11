@@ -166,7 +166,7 @@ class Huffman:
         bitReserve = 0
 
         bitsInReservoirThreshold = 10
-        bitDepsoitTransferPercentage = 1.0/100
+        bitDepsoitTransferPercentage = 1.0/5
         if self.bitsInReservoir > bitsInReservoirThreshold:
             bitReserve = self.bitsInReservoir*bitDepsoitTransferPercentage
             self.bitsInReservoir -= bitReserve

@@ -207,19 +207,19 @@ class PACFile(AudioFile):
             
             elif codingParams.win_state == 1:
                 codingParams.nMDCTLines = codingParams.nMDCTLinesTrans
-                codingParams.a = 512
+                codingParams.a = 64
                 codingParams.sfBands = codingParams.sfBandsTrans
                
             
             elif codingParams.win_state == 2:
                 codingParams.nMDCTLines = codingParams.nMDCTLinesShort
-                codingParams.a = 64
+                codingParams.b = 64
                 codingParams.sfBands = codingParams.sfBandsShort
             
             elif codingParams.win_state == 3:
                 codingParams.nMDCTLines = codingParams.nMDCTLinesTrans
                 codingParams.sfBands = codingParams.sfBandsTrans
-                codingParams.a = 64
+                codingParams.b = 512
             
             else:
                 raise ValueError('Invalid window state: ' + str(codingParams.win_state))
@@ -229,7 +229,7 @@ class PACFile(AudioFile):
             overallScaleFactor = pb.ReadBits(codingParams.nScaleBits)  # overall scale factor
             scaleFactor=[]
             bitAlloc=[]
-            mantissa=np.zeros(codingParams.nMDCTLines,np.int32)  # start w/ all mantissas zero
+            mantissa=np.zeros(int(codingParams.nMDCTLines),np.int32)  # start w/ all mantissas zero
             for iBand in range(codingParams.sfBands.nBands): # loop over each scale factor band to pack its data
                 ba = pb.ReadBits(codingParams.nMantSizeBits)
                 if ba: ba+=1  # no bit allocation of 1 so ba of 2 and up stored as one less
@@ -319,7 +319,7 @@ class PACFile(AudioFile):
         fullBlockData=[]
         for iCh in range(codingParams.nChannels):
             fullBlockData.append( np.concatenate( ( codingParams.priorBlock[iCh], data[iCh]) ) )
-        codingParams.priorBlock = data  # current pass's data is next pass's prior block data
+            codingParams.priorBlock[iCh] = np.copy(data[iCh])  # current pass's data is next pass's prior block data
 
         #decide sfBands object based on window state
         if(codingParams.win_state == 0):
@@ -434,7 +434,7 @@ if __name__=="__main__":
 
     input_filename = "audio/Castanets_1T.wav"
     coded_filename = "coded.pac"
-    output_filename = "audio/Castanets_1T_bs_highDR.wav"
+    output_filename = "audio/Castanets_output.wav"
 
     if len(sys.argv) > 1:
         input_filename = sys.argv[1]

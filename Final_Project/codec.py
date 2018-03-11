@@ -97,13 +97,19 @@ def Encode(data,codingParams, myhuffyman):
 
     coherence = False
 
+    lowerBandThresh = 6
+
     for band in range(sfBands.nBands):
 
         
         lowLine = sfBands.lowerLine[band]
         highLine = sfBands.upperLine[band] + 1
 
-        if(count >= 6):
+
+        # Find which bands have high correlation and which dont 
+
+        if(lowerBandThresh >= 6):
+
             if coherence:
 
                 LRorMS[band] = coherenceLR( fftL, fftR , lowLine , highLine, threshold)
@@ -114,12 +120,9 @@ def Encode(data,codingParams, myhuffyman):
 
         count += 1
 
-
-    print " L/R or M/S : " + str(LRorMS) 
-
     (scaleFactor,bitAlloc,mantissa,overallScaleFactor) = EncodeTwoChannels(data, codingParams,LRorMS , myhuffyman)
 
-
+    # Perform Huffman Encoding on both the channels
     for iCh in range(codingParams.nChannels):
         
         (signBits, unsignedMantissas) = removeMantissaSignBits(codingParams,mantissa[iCh],bitAlloc[iCh])
@@ -198,6 +201,7 @@ def EncodeSingleChannel(data,codingParams):
     # return results
     return (scaleFactor, bitAlloc, mantissa, overallScale)
 
+    
 
 def removeMantissaSignBits(codingParams,mantissa,bitAlloc):
     mantissaSignBits = []
