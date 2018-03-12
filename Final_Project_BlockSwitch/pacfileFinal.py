@@ -392,16 +392,11 @@ if __name__=="__main__":
     W = WindowState()
     nSubBlocks = 8
     #some variables I want to keep tab of 
-    readSignal = np.array([], dtype = float)
-    writeSignal = np.array([], dtype = float)
-    transients = []
-    count = 1
-    countBlockEncode = 0
-    countBlockDecode = 0
+    is_transient = False
 
-    input_filename = "../audio/Castanets.wav"
-    coded_filename = "../audio/castanets_BS_HUFFMAN_STEREO_reducedBits.pac"
-    output_filename = "../audio/castanets_BS_HUFFMAN_STEREO_reducedBits.wav"
+    input_filename = "../audio/Castanets_1T.wav"
+    coded_filename = "../audio/castanest_1T_BS_HUFFMAN_STEREO.pac"
+    output_filename = "../audio/castanets_1T_BS_HUFFMAN_STEREO.wav"
 
 
     if len(sys.argv) > 1:
@@ -487,13 +482,9 @@ if __name__=="__main__":
                 
                 #detect transient in block
                 newBlock = np.copy(data[0])
-                is_transient = transient_detection(newBlock)
-                #is_transient = False
+                is_transient = transient_detection(newBlock, is_transient)
                 codingParams.win_state = W.nextBuffer(is_transient)
                 
-                if(is_transient):
-                    transients.append(count)
-                count += 1
             
                 #print('Window state :' , codingParams.win_state)
         

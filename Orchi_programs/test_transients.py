@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 
 # create the audio file objects of the appropriate audioFile type
-inFile= PCMFile("audio/Castanets.wav")
+inFile= PCMFile("../audio/Castanets.wav")
 
 # open input file and get its coding parameters
 codingParams= inFile.OpenForReading()
@@ -46,7 +46,7 @@ while True:
     nBits = 8
     if not data : break
     #also keep appending it to longer signal chain
-    signal = np.concatenate([signal, data[iCh]])
+    signal = np.concatenate([signal, data[0]])
     
     for iCh in range(codingParams.nChannels):
        
@@ -72,9 +72,12 @@ while True:
 #            transients[iCh].append(False)
             
         #using Prateek's FFT transient detector
-        transients[iCh].append(bs.transient_detection(newBlock))
-    
-#    count += 1
+        if(count > 0):    
+            transients[iCh].append(bs.transient_detection(newBlock,transients[iCh][-1]))
+        else:
+            transients[iCh].append(bs.transient_detection(newBlock, False))
+            
+    count += 1
                    
 
 #find indices of all blocks that have transients for the first channel only
@@ -94,7 +97,7 @@ for xc in xcoords:
     plt.axvline(x=xc, color = 'r', linestyle = '--')
 plt.title('Castanets')
 plt.xlabel('Time in seconds')
-plt.xlim(xmin = 0, xmax = 8)
+plt.xlim(xmin = 0, xmax = 6.5)
 plt.ylabel('Amplitude')
 
 # close the files

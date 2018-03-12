@@ -98,10 +98,11 @@ def compose_kbd_window(dataSampleArray, left, right, left_alpha=4., right_alpha=
     b_window = KBDWindow(b_ones, alpha=right_alpha)[right:]
     
     #for plotting only    
-#    if(left == 64 or right == 64):
-#        plt.figure
-#        plt.plot(np.concatenate([a_window, b_window]))
-#        plt.show()
+    #if(left == 64 or right == 64):
+#    plt.figure
+#    plt.plot(np.concatenate([a_window, b_window]))
+#    plt.xlim(xmin = 0, xmax = 1024)
+#    plt.show()
         
     return dataSampleArray * np.concatenate([a_window, b_window])
     

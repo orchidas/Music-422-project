@@ -436,9 +436,9 @@ if __name__=="__main__":
     import time
     from pcmfile import * # to get access to WAV file handling
 
-    input_filename = "audio/Castanets.wav"
-    coded_filename = "coded.pac"
-    output_filename = "audio/Castanets_bs_highDR.wav"
+    input_filename = "../audio/Castanets_1T.wav"
+    coded_filename = "../audio/coded.pac"
+    output_filename = "../audio/Castanets_IT_highDR.wav"
 
     if len(sys.argv) > 1:
         input_filename = sys.argv[1]
@@ -459,6 +459,7 @@ if __name__=="__main__":
     count = 1
     countBlockEncode = 0
     countBlockDecode = 0
+    is_transient = False
 
     for Direction in ("Encode", "Decode"):
 #    for Direction in ("Decode"):
@@ -530,7 +531,7 @@ if __name__=="__main__":
                 
                 #detect transient in block
                 newBlock = np.copy(data[0])
-                is_transient = transient_detection(newBlock)
+                is_transient = transient_detection(newBlock, is_transient)
                 codingParams.win_state = W.nextBuffer(is_transient)
                 
                 if(is_transient):

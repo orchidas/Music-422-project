@@ -49,13 +49,18 @@ def detectTransient(sfBands, data, MDCTdata, MDCTscale, sampleRate):
     return PE
     
     
-def transient_detection(data):
+def transient_detection(data, prevBlock):
     """Transient detection using weighted FFT"""
     
     N_half = len(data)/2
     fftData = np.fft.fft(data)[ : int(N_half)]
-    #threshold_energy = 0.14
-    threshold_energy = 50
+  
+    #if last block was detected as a transient, increase threshold energy    
+    if not prevBlock:
+        threshold_energy = 50
+    else:
+        threshold_energy = 80
+    
     #try a different weight (HFC function)
     weights = np.arange(N_half)
 
