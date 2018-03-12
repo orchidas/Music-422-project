@@ -388,9 +388,18 @@ class PACFile(AudioFile):
         # determine if encoding or encoding and, if encoding, do last block
         if self.fp.mode == "wb":  # we are writing to the PACFile, must be encode
             # we are writing the coded file -- pass a block of zeros to move last data block to other side of MDCT block
-            data = [ np.zeros(codingParams.nMDCTLines,dtype=np.float),
-                     np.zeros(codingParams.nMDCTLines,dtype=np.float) ]
+            if codingParams.win_state == 0 or codingParams.win_state == 3:
+                nMDCTLines = codingParams.nMDCTLinesLong
+            else:
+                nMDCTLines = codingParams.nMDCTLinesShort
+
+            data = []
+            for iCh in range(codingParams.nChannels): data.append( np.zeros(nMDCTLines, dtype=np.float) )            
             self.WriteDataBlock(data, codingParams)
+            
+#            data = [ np.zeros(codingParams.nMDCTLines,dtype=np.float),
+#                     np.zeros(codingParams.nMDCTLines,dtype=np.float) ]
+#            self.WriteDataBlock(data, codingParams)
         self.fp.close()
 
 

@@ -89,7 +89,8 @@ def MDCT(data, a, b, isInverse=False):
 
         postTwiddle = (2*NhalfLength) * np.exp ( (1j* np.pi / (2*NhalfLength)) * np.linspace(N0 , 2*NhalfLength + N0 - 1 , 2*NhalfLength))
 
-        newData = np.concatenate((data, -np.flip(data,0)))
+        #newData = np.concatenate((data, -np.flip(data,0)))
+        newData = np.concatenate((data, -np.flipud(data)))
 
         fastIMDCT = np.real(postTwiddle * np.fft.ifft(preTwiddle * newData))
 

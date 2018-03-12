@@ -93,38 +93,41 @@ class PACFile(AudioFile):
             if pb.nBytes < nBytes:  raise "Only read a partial block of coded PACFile data"
 
             codingParams.win_state = pb.ReadBits(2)
+            
+            #window state is going to be same for both channels, we should only do this once
+            if(iCh == 0):
 
-            if codingParams.win_state == 0:
-                codingParams.nMDCTLines = codingParams.nMDCTLinesLong
-                codingParams.a = 512
-                codingParams.sfBands = codingParams.sfBandsLong
+                if codingParams.win_state == 0:
+                    codingParams.nMDCTLines = codingParams.nMDCTLinesLong
+                    codingParams.a = 512
+                    codingParams.sfBands = codingParams.sfBandsLong
+                    
                 
-            
-            elif codingParams.win_state == 1:
-                codingParams.nMDCTLines = codingParams.nMDCTLinesTrans
-                codingParams.a = 64
-                codingParams.sfBands = codingParams.sfBandsTrans
-               
-            
-            elif codingParams.win_state == 2:
-                codingParams.nMDCTLines = codingParams.nMDCTLinesShort
-                codingParams.b = 64
-                codingParams.sfBands = codingParams.sfBandsShort
-            
-            elif codingParams.win_state == 3:
-                codingParams.nMDCTLines = codingParams.nMDCTLinesTrans
-                codingParams.sfBands = codingParams.sfBandsTrans
-                codingParams.b = 512
-            
-            else:
-                raise ValueError('Invalid window state: ' + str(codingParams.win_state))
-
-
-            overallScaleFactor=np.zeros((codingParams.nChannels),dtype='int')
-            scaleFactor=np.zeros((codingParams.nChannels,codingParams.sfBands.nBands),dtype='int')
-            mantissa=np.zeros((codingParams.nChannels,codingParams.nMDCTLines),dtype='int')
-            bitAlloc=np.zeros((codingParams.nChannels,codingParams.sfBands.nBands),dtype='int')
-            LRMS=np.zeros(codingParams.sfBands.nBands,dtype='int')
+                elif codingParams.win_state == 1:
+                    codingParams.nMDCTLines = codingParams.nMDCTLinesTrans
+                    codingParams.a = 64
+                    codingParams.sfBands = codingParams.sfBandsTrans
+                   
+                
+                elif codingParams.win_state == 2:
+                    codingParams.nMDCTLines = codingParams.nMDCTLinesShort
+                    codingParams.b = 64
+                    codingParams.sfBands = codingParams.sfBandsShort
+                
+                elif codingParams.win_state == 3:
+                    codingParams.nMDCTLines = codingParams.nMDCTLinesTrans
+                    codingParams.sfBands = codingParams.sfBandsTrans
+                    codingParams.b = 512
+                
+                else:
+                    raise ValueError('Invalid window state: ' + str(codingParams.win_state))
+    
+    
+                overallScaleFactor=np.zeros((codingParams.nChannels),dtype='int')
+                scaleFactor=np.zeros((codingParams.nChannels,codingParams.sfBands.nBands),dtype='int')
+                mantissa=np.zeros((codingParams.nChannels,codingParams.nMDCTLines),dtype='int')
+                bitAlloc=np.zeros((codingParams.nChannels,codingParams.sfBands.nBands),dtype='int')
+                LRMS=np.zeros(codingParams.sfBands.nBands,dtype='int')
 
 
             # extract the data from the PackedBits object
@@ -156,6 +159,9 @@ class PACFile(AudioFile):
 
                     mantissa[iCh][codingParams.sfBands.lowerLine[iBand]:(codingParams.sfBands.upperLine[iBand]+1)] = m
             # done unpacking data (end loop over scale factor bands)
+           
+           
+            #print("Channel :", iCh, "Scale Factor :", scaleFactor[iCh])
 
             # CUSTOM DATA:
             # unpack LRMS
@@ -164,6 +170,8 @@ class PACFile(AudioFile):
 
         # recombine into L and R
         # (DECODE HERE) decode the unpacked data for both channels
+
+        #print("Scale Factor :", scaleFactor)
         decodedData = self.Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams,LRMS,myhuffyman)
 
         # print decodedData
@@ -254,7 +262,8 @@ class PACFile(AudioFile):
             codingParams.sfBands = codingParams.sfBandsTrans
 
         (scaleFactor,bitAlloc,overallScaleFactor,LRMS,mantissaSignBits,mantissa,tableID) = self.Encode(fullBlockData,codingParams,myhuffyman)  # returns a tuple with all the block-specific info not in the file header
-
+        #print("Scale factor", scaleFactor)
+        
         # for each channel, write the data to the output file
         for iCh in range(codingParams.nChannels):
             
@@ -295,6 +304,7 @@ class PACFile(AudioFile):
 
             pb.WriteBits(codingParams.win_state,2)
 
+            
             # now pack the nBytes of data into the PackedBits object
             pb.WriteBits(overallScaleFactor[iCh],codingParams.nScaleBits)  # overall scale factor
             '''Write myhuffyman table ID'''
@@ -326,6 +336,7 @@ class PACFile(AudioFile):
 
             # finally, write the data in this channel's PackedBits object to the output file
             self.fp.write(pb.GetPackedData())
+            
         # end loop over channels, done writing coded data for all channels
         return
 
@@ -337,9 +348,17 @@ class PACFile(AudioFile):
         # determine if encoding or encoding and, if encoding, do last block
         if self.fp.mode == "wb":  # we are writing to the PACFile, must be encode
             # we are writing the coded file -- pass a block of zeros to move last data block to other side of MDCT block
-            data = [ np.zeros(codingParams.nMDCTLines,dtype=np.float),
-                     np.zeros(codingParams.nMDCTLines,dtype=np.float) ]
+
+            #fixing last block of data that's to be written
+            if codingParams.win_state == 0 or codingParams.win_state == 3:
+                nMDCTLines = codingParams.nMDCTLinesLong
+            else:
+                nMDCTLines = codingParams.nMDCTLinesShort
+
+            data = []
+            for iCh in range(codingParams.nChannels): data.append( np.zeros(nMDCTLines, dtype=np.float) )                 
             self.WriteDataBlock(data, codingParams,myhuffyman)
+            
         self.fp.close()
 
     def Encode(self,data,codingParams,myhuffyman):
@@ -380,9 +399,9 @@ if __name__=="__main__":
     countBlockEncode = 0
     countBlockDecode = 0
 
-    input_filename = "inputs/castanets.wav"
-    coded_filename = "outputs/castanets_BS_HUFFMAN_STEREO.pac"
-    output_filename = "outputs/castanets_BS_HUFFMAN_STEREO.wav"
+    input_filename = "../audio/Castanets.wav"
+    coded_filename = "../audio/castanets_BS_HUFFMAN_STEREO_reducedBits.pac"
+    output_filename = "../audio/castanets_BS_HUFFMAN_STEREO_reducedBits.wav"
 
 
     if len(sys.argv) > 1:
@@ -455,12 +474,12 @@ if __name__=="__main__":
                 firstBlock = False
                 continue    
 
-            if Direction == "Encode" :
-                # readSignal = np.concatenate([readSignal,data[0]])
-                countBlockEncode += 1
-            elif Direction == "Decode" :
-                # writeSignal = np.concatenate([writeSignal, data[0]])
-                countBlockDecode += 1
+#            if Direction == "Encode" :
+#                # readSignal = np.concatenate([readSignal,data[0]])
+#                countBlockEncode += 1
+#            elif Direction == "Decode" :
+#                # writeSignal = np.concatenate([writeSignal, data[0]])
+#                countBlockDecode += 1
                 
             
             #while encoding
@@ -515,9 +534,9 @@ if __name__=="__main__":
                             
                 elif(codingParams.win_state == 2):
                     
-                    print('Two consecutive transients')
-
-                    print "shape of Tranition Block : " + str(np.shape(transBlock))
+                    #print('Two consecutive transients')
+                    #print "shape of Tranition Block : " + str(np.shape(transBlock))
+                    
                     for k in range(nSubBlocks):
                         for iCh in range(codingParams.nChannels):
                             transBlock[iCh] = data[iCh][np.arange(codingParams.nMDCTLinesShort) + k*codingParams.nMDCTLinesShort]

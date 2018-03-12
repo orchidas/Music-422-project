@@ -70,7 +70,7 @@ def KBDWindow(dataSampleArray,alpha=4.):
 
     kbdWind[: N/2] = np.cumsum(besselOut[0:len(besselOut) - 1]**2)/np.sum(besselOut**2)
 
-    kbdWind [ N/2 : ] = np.flip(kbdWind[: N/2],0)
+    kbdWind [ N/2 : ] = np.flipud(kbdWind[: N/2])
 
     kbdWind = np.sqrt(kbdWind)
 
@@ -94,8 +94,7 @@ def compose_kbd_window(dataSampleArray, left, right, left_alpha=4., right_alpha=
 
     # Create a window for size right
     b_ones = np.ones(2*right)
-    b_window = KBDWindow(b_ones, alpha=right_alpha)[:right]
-    b_window = b_window[::-1]
+    b_window = KBDWindow(b_ones, alpha=right_alpha)[right:]
     
     return dataSampleArray * np.concatenate([a_window, b_window])
     
@@ -119,8 +118,6 @@ def compose_sine_window(dataSampleArray, left, right):
 
     # Create a window for size right
     b_ones = np.ones(2*right)
-#    b_window = SineWindow(b_ones)[:right]
-#    b_window = b_window[::-1]
     b_window = SineWindow(b_ones)[right:]
     return dataSampleArray * np.concatenate([a_window, b_window])
 

@@ -94,12 +94,12 @@ def Decode(scaleFactor,bitAlloc,mantissa,overallScaleFactor,codingParams,LRorMS)
             mdctLineL[lowLine:highLine]=mdctDecoded[0][lowLine:highLine] - mdctDecoded[1][lowLine:highLine]
             mdctLineR[lowLine:highLine]=mdctDecoded[0][lowLine:highLine]+ mdctDecoded[1][lowLine:highLine]
 
-    print mdctLineL
+    #print mdctLineL
 
 
     # IMDCT and window the data for each channel
-    dataL = win.compose_sine_window(IMDCT(mdctLineL, codingParams.a, codingParams.b),codingParams.a, codingParams.b)  # takes in halfN MDCT coeffs
-    dataR = win.compose_sine_window(IMDCT(mdctLineR, codingParams.a, codingParams.b),codingParams.a, codingParams.b)
+    dataL = win.compose_kbd_window(IMDCT(mdctLineL, codingParams.a, codingParams.b),codingParams.a, codingParams.b, 4., 4.)  # takes in halfN MDCT coeffs
+    dataR = win.compose_kbd_window(IMDCT(mdctLineR, codingParams.a, codingParams.b),codingParams.a, codingParams.b, 4., 4.)
 
     # print dataL
     # print dataR
@@ -153,7 +153,7 @@ def Encode(data,codingParams, myhuffyman):
         count += 1
 
 
-    print " L/R or M/S : " + str(LRorMS) 
+    #print " L/R or M/S : " + str(LRorMS) 
 
     (scaleFactor,bitAlloc,mantissa,overallScaleFactor) = EncodeTwoChannels(data, codingParams,LRorMS , myhuffyman)
 
@@ -163,7 +163,7 @@ def Encode(data,codingParams, myhuffyman):
         (signBits, unsignedMantissas) = removeMantissaSignBits(codingParams,mantissa[iCh],bitAlloc[iCh])
 
         (codeHuffman,tabID) = myhuffyman.encodeHuffman(codingParams,unsignedMantissas,bitAlloc[iCh])
-        print "Table Being Used : ", tabID
+        #print "Table Being Used : ", tabID
         bitsAvailable = sum(bitAlloc[iCh]*codingParams.sfBands.nLines)
         huffmanBitsRequired = sum(len(huffman) for huffman in codeHuffman) + len(signBits) + codingParams.numTableBits
         myhuffyman.giveBits(bitsAvailable-huffmanBitsRequired)
@@ -320,7 +320,7 @@ def EncodeTwoChannels(data,codingParams,LRorMS , myhuffyman):
 
             codingParams.a = codingParams.b = int(len(data[iCh])/2)
 
-        mdctTimeData.append(win.compose_sine_window(data[iCh], codingParams.a, codingParams.b))
+        mdctTimeData.append(win.compose_kbd_window(data[iCh], codingParams.a, codingParams.b, 4., 4.))
         mdctLines.append(MDCT(mdctTimeData[iCh], codingParams.a, codingParams.b)[:halfN])
 
 
@@ -346,8 +346,8 @@ def EncodeTwoChannels(data,codingParams,LRorMS , myhuffyman):
         bitAlloc.append(ba)
         codingParams.bitReservoir+=bitDifference
 
-        print "Extra Bits Available : " + str(codingParams.bitReservoir)
-        print "Bits in Bit Reservoir : " + str(myhuffyman.getBitReservoir())
+        #print "Extra Bits Available : " + str(codingParams.bitReservoir)
+        #print "Bits in Bit Reservoir : " + str(myhuffyman.getBitReservoir())
 
         # given the bit allocations, quantize the mdct lines in each band
         scaleFactor.append(np.empty(sfBands.nBands,dtype=np.int32))
@@ -360,8 +360,8 @@ def EncodeTwoChannels(data,codingParams,LRorMS , myhuffyman):
             lowLine = sfBands.lowerLine[iBand]
             highLine = sfBands.upperLine[iBand] + 1  
             nLines= sfBands.nLines[iBand]
-            print "Lowline is : " + str(lowLine)
-            print "HighLine is :" + str(highLine)
+            #print "Lowline is : " + str(lowLine)
+            #print "HighLine is :" + str(highLine)
 
             if(highLine - lowLine <= 0 ):
                 scaleFactor[iCh][iBand] = 0
@@ -377,6 +377,7 @@ def EncodeTwoChannels(data,codingParams,LRorMS , myhuffyman):
                     mantissa[iCh][iMant:iMant+nLines] = vMantissa(LRorMSmdctLines[iCh][lowLine:highLine],scaleFactor[iCh][iBand], nScaleBits, bitAlloc[iCh][iBand])
                     iMant += nLines
     
+    #print("Scale factor" , scaleFactor)
     return (scaleFactor, bitAlloc, mantissa, overallScale)
 
 

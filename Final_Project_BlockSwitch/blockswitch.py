@@ -55,9 +55,7 @@ def transient_detection(data):
     N_half = len(data)/2
     fftData = np.fft.fft(data)[ : int(N_half)]
     #threshold_energy = 0.14
-    threshold_energy = 80
-    #weights = np.ones(N_half)
-    #weights[ : len(weights)/2] = 0.0
+    threshold_energy = 50
     #try a different weight (HFC function)
     weights = np.arange(N_half)
 
