@@ -93,6 +93,7 @@ class HuffmanTable:
 
 #------------------------------------------------------------------------#
 
+# Class to encode and decode Huffman codes . It also includes functions for bit saving , bit snatching etc 
 class Huffman:
     
     #---PUBLIC METHODS---#
@@ -104,7 +105,7 @@ class Huffman:
         self.ESCAPE_CODE = -1
         self.bitsInReservoir = 0
     
-    
+    # Encode a given mantissa with the best found table based on minimum table length 
     def encodeHuffman(self,codingParams,mantissaCode,bitAlloc):
         bestHuffmanCodedMantissa = []
 
@@ -137,7 +138,7 @@ class Huffman:
                 bestTableID = ID
         return (bestHuffmanCodedMantissa,bestTableID)
     
-   
+   # Decode Huffman using the table used for huffman encoding 
     def decodeHuffman(self,bitReader,tableID,bitAlloc):
         huffmanTable = self.huffmanTables[tableID]
         huffmanCode = ""
@@ -157,11 +158,11 @@ class Huffman:
             else:
                 huffmanCode += repr(1)
 
-    
+    # Adding bits to bit reservoir 
     def giveBits(self,numBits):
         self.bitsInReservoir += numBits
 
-    
+    # snatch a percentage of bits from the bit reservoir to assign as extra bits
     def snatchBits(self):
         bitReserve = 0
 
@@ -174,7 +175,7 @@ class Huffman:
             bitReserve = self.bitsInReservoir
             self.bitsInReservoir = 0
         return bitReserve
-
+# Total bits in bit reservoir 
     def getBitReservoir(self):
         return self.bitsInReservoir
 
