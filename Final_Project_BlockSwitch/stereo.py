@@ -9,6 +9,7 @@ import numpy as np
 from numpy import*
 
 
+# BMLD in Bark Scale 
 
 def mldBark(z):
     
@@ -24,6 +25,8 @@ def mldBark(z):
 
     return mldBark
 
+
+# BMLD in Hz scale 
 def mldBarkFrequency(f):
     
     a = 1.25
@@ -39,7 +42,7 @@ def mldBarkFrequency(f):
 
     return mldBark
 
-
+# Peak calculation as used in homework 
 def findpeaks(Xwdb, sampleRate, N):
 
     peaks = []
@@ -76,7 +79,7 @@ def findpeaks(Xwdb, sampleRate, N):
     return estimateAmp, estimateFreqs, freqsIndex
 
 
-
+# Function to estimate the base thresholds 
 def calcBTHR(data, MDCTdata, MDCTscale, sampleRate, sfBands, noDrop):
    
     N = len(data)
@@ -112,6 +115,8 @@ def calcBTHR(data, MDCTdata, MDCTscale, sampleRate, sfBands, noDrop):
 
     return  SPL(masked_intensity)
 
+
+# Estimate the SMR's for the two channels 
 def stereoSMR(stereoThreshold, mdctSPL, sfBands):
     
 
@@ -145,13 +150,14 @@ def stereoSMR(stereoThreshold, mdctSPL, sfBands):
 
     return SMRs
 
-
+# Correlation based on MPEG-1
 def corellationLR( dataL , dataR , lowLine , upperLine ):
 
 	corr = abs(sum(dataL[lowLine:upperLine]**2 - dataR[lowLine:upperLine]**2 )) < -0.8*abs(sum(dataL[lowLine:upperLine]**2 + dataR[lowLine:upperLine]**2))
 
 	return corr
 
+# Correllation based on coherence 
 def coherenceLR( dataL , dataR , lowLine, upperLine , threshold):
 
     coherence = np.mean(( abs(dataL[lowLine:upperLine]*dataR[lowLine:upperLine])**2 ) / ( ( abs(dataL[lowLine:upperLine])**2 ) * abs( dataR[lowLine:upperLine] )**2 )) >= threshold
@@ -159,7 +165,7 @@ def coherenceLR( dataL , dataR , lowLine, upperLine , threshold):
     return coherence
 
 
-
+# Calculate masked thresholds based on Johnston and Ferrira's Sum and Difference Stereo Coding Paper
 def stereoMaskThresholds(data, MDCTdata, MDCTscale, sampleRate, sfBands, LRMS, codingParams): # sendMS):
     
 
